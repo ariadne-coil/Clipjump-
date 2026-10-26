@@ -1,7 +1,7 @@
 {
   "autohotkey": {
     "version": "1.1.37.02",
-    "url": "https://www.autohotkey.com/download/1.1/AutoHotkey_1.1.37.02.zip",
+    "url": "https://github.com/AutoHotkey/AutoHotkey/releases/download/v1.1.37.02/AutoHotkey_1.1.37.02.zip",
     "sha256": "6f3663f7cdd25063c8c8728f5d9b07813ced8780522fd1f124ba539e2854215f"
   },
   "sqlite": {
