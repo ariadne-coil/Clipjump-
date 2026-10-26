@@ -1,16 +1,16 @@
 # Compatibility and validation
 
-Target platform: Windows 11 x64. This beta preserves the original UI and scripting model while replacing clipboard capture and storage paths. It is not a complete rewrite or a guarantee against all app-specific errors.
+Target platform: Windows 11 x64. Version 13.0.0-beta.1 is a native AutoHotkey v2 port with rebuilt Windows dialogs and clipboard/storage layers. Compatibility is limited to the tested workflows below; it does not guarantee every app-specific workflow.
 
 | Area | Status |
 | --- | --- |
 | Windows 11 Home x64, build 26200 | Local test platform |
-| AutoHotkey 1.1.37.02 Unicode, x64 and x86 | Clipboard and SQLite regression suites |
-| SQLite 3.54.1, matching DLL architecture | Storage, legacy-schema migration and startup tests |
+| AutoHotkey 2.0.31 Unicode, x64 and x86 | 86 regression checks per architecture plus packaged startup |
+| SQLite 3.54.1, matching DLL architecture | Storage, cross-architecture legacy import, API and startup tests |
 | Unicode/emoji, RTF and HTML | Capture, archive and restoration fixtures |
 | DIB, opaque binary, Adobe PDF/AICB-style and SVG payloads | Binary restoration fixtures; not Adobe application certification |
 | Busy clipboard, stalled renderer, stale capture | Failure and timeout fixtures |
-| Microsoft 365 Word/Excel | Direct results recorded in TESTING.md |
+| Microsoft 365 Word/Excel | v1 baseline in TESTING-V1.md; v2 results in TESTING.md |
 | PowerPoint, Outlook, OneNote and Access | Direct validation pending |
 | Photoshop, Illustrator, InDesign and Acrobat | Direct validation pending; not installed on the development machine |
 | Other Creative Cloud apps | Direct validation pending |
@@ -34,9 +34,9 @@ Windows requests can block in a source application's delayed renderer. The worke
 
 ## Existing data
 
-Keep the previous installation backed up. This beta adds a nullable snapshot column to the existing history table. Existing text-only history remains readable; newly captured entries retain rich-format archives. History expiration and deletion remove associated snapshot files.
+The port uses separate `cache-v2/` and `settings-v2.ini` files. The tray importer reads original `cache/clips*` and `cache/data.db` without modifying the selected source. Both v1 pointer widths are detected. Safe import recovers standard text, DIB images and file lists. Optional registered-format import is only valid for archives from the same Windows session; numeric IDs in old files cannot reliably identify formats after reboot.
 
-Legacy `.avc` archives depend on the runtime's pointer width. Do not copy old x86 archives into an x64 installation or vice versa. Architecture migration and cross-architecture import validation are not included in this beta. Portable packages contain no user settings or clipboard data.
+New `.cjc` archives store registered format names and binary payloads, so they can be shared across x86/x64 runtimes and Windows sessions. Lost formatting in old text-only history cannot be recovered. V1 third-party plugins and custom script strings require conversion to native v2 callbacks or named actions. Portable packages contain no user settings or clipboard data.
 
 ## Upstream reports guiding this work
 
@@ -48,4 +48,4 @@ Legacy `.avc` archives depend on the runtime's pointer width. Do not copy old x8
 
 These reports motivate the changes. They are not marked resolved upstream: their original environments and all modern equivalents have not been reproduced.
 
-Primary references: [Windows clipboard operations](https://learn.microsoft.com/en-us/windows/win32/dataxchg/using-the-clipboard), [AutoHotkey clipboard implementation](https://github.com/AutoHotkey/AutoHotkey/blob/v1.1.37.02/source/clipboard.cpp), [SQLite downloads](https://www.sqlite.org/download.html).
+Primary references: [Windows clipboard operations](https://learn.microsoft.com/en-us/windows/win32/dataxchg/using-the-clipboard), [AutoHotkey clipboard implementation](https://github.com/AutoHotkey/AutoHotkey/blob/v2.0.31/source/clipboard.cpp), [SQLite downloads](https://www.sqlite.org/download.html).

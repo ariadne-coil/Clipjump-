@@ -17,7 +17,7 @@ jobs:
       - name: Build verified portable package
         shell: pwsh
         run: ./scripts/Build.ps1 -Architecture ${{ matrix.architecture }}
-      - name: Test clipboard, history and startup
+      - name: Test native v2 clipboard, history, API, plugins and startup
         shell: pwsh
         run: ./scripts/Test.ps1 -Architecture ${{ matrix.architecture }}
       - uses: actions/upload-artifact@v4

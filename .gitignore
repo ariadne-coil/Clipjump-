@@ -12,3 +12,9 @@ ClipjumpCustom.ini
 runtime/
 dist/
 test-results/
+runtime-v2/
+cache-v2/
+settings-v2.ini
+ClipjumpCustom-v2.ini
+HotPaste-v2.ini
+plugins-v2/User.ahk

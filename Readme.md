@@ -1,38 +1,38 @@
-# Clipjump Modern
+# Clipjump Modern — AutoHotkey v2
 
-A Windows 11 continuation of [Avi Aryan's Clipjump](https://github.com/aviaryan/Clipjump), preserving its keyboard-driven clipboard history, channels and plugins. Licensed under Apache 2.0; original credits remain in NOTICE.txt.
+A native AutoHotkey v2 continuation of [Avi Aryan’s Clipjump](https://github.com/aviaryan/Clipjump), targeting Windows 11. Version **13.0.0-beta.1** ports the clipboard engine, history, channels, paste mode, settings, bundled formats, customization and public API to **AutoHotkey 2.0.31**. Apache 2.0; original credits remain in NOTICE.txt.
 
-**12.6.0-beta.1 is a compatibility beta.** Automated clipboard and history regressions run on Windows 11 x64. Microsoft 365 and Adobe Creative Cloud are compatibility targets; individual app workflows must be validated using the [compatibility matrix](docs/COMPATIBILITY.md). This release does not claim error-free operation across every application.
+This is a compatibility beta. Microsoft 365 and Adobe Creative Cloud are targets; see the [tested scope and limits](docs/COMPATIBILITY.md). Adobe application testing is still pending. The v1 beta remains on `master` while this port is reviewed on `port/ahk-v2`.
 
-## Run on Windows 11
+## Run
 
-Extract the portable x64 ZIP into a writable folder, then double-click **Start-Clipjump.cmd**. No AutoHotkey installation or administrator access is required. Exit an older Clipjump before starting this fork. Use a separate folder for this beta so the previous installation and history remain available.
+Extract the x64 portable ZIP to a writable folder and double-click **Start-Clipjump.cmd**. The matching interpreter and SQLite DLL are included. No administrator access or separate AutoHotkey installation is required. Exit other Clipjump instances before starting.
 
-Copy normally. Hold Ctrl and press V to enter Paste Mode; press V again while holding Ctrl to browse older clips, then release Ctrl to paste. Use the tray menu for History, channels, settings and plugins. If the latest copy is still being captured or capture fails, Ctrl+V passes through to the application's current clipboard. History remains available from the tray.
+Copy normally. Hold Ctrl and press V to enter paste mode, press V again to browse older clips, then release Ctrl to paste. The first paste uses the live application clipboard, preserving Excel’s current formulas and cut operation. Historical Office clips retain transferable rich formatting and displayed cell values.
 
-Plain text conversion is explicit through the formatting commands. Ordinary history copy and paste restore archived rich formats. Legacy history entries originally stored as plain text cannot recover formatting already discarded.
+- **Ctrl+Shift+H:** searchable history, preview, instant paste, hold/edit, tags, pinning, moving and copying between channels, archive import/export.
+- **Ctrl+Shift+O:** channel organizer, protected channels and history exclusion.
+- **Ctrl+Shift+A:** action menu. The tray also opens settings, plugins and formatting tools.
+- **Ctrl+Alt+V:** explicit plain-text paste.
+- In paste mode: **C** previous, **X** cancel, **Z** next format, **F** search, **Up/Down** change channel, **Space** pin, **T** tag, **H** hold/edit, **E** export, **Enter** paste and continue, **1–9** select a clip. Keep Ctrl held. Shift when releasing Ctrl removes the pasted channel entry.
 
-## Compatibility improvements
+## Data and extensions
 
-- Capture runs in a separate process with a three-second deadline. Rapid changes are debounced; stale captures are rejected using clipboard sequence numbers.
-- Office capture requests transferable text, HTML, RTF, CSV, DIB, PNG and SVG formats, avoiding printer/metafile rendering and transient OLE object formats. Historical Excel cells retain displayed values and formatting; native copying keeps live formulas.
-- Binary snapshots preserve formatting in channels and history. Duplicate detection compares binary content, including formatting changes with identical text.
-- Startup indexes archives without clearing or replaying the live clipboard. Capture never steals Excel's focus or sends Delete after Ctrl+X.
-- Clipboard access waits are bounded. A failed archive load cancels the paste instead of pasting a different clip.
-- SQLite inserts use bound parameters; search safely handles quotes and SQL-like text. Missing thumbnails cannot create malformed SQL. Existing history databases gain a snapshot column without dropping rows.
-- Builds include matching Unicode runtimes and current SQLite DLLs, verified against pinned checksums. Previews are generated from archived DIB data.
+The port starts with separate `cache-v2/` and `settings-v2.ini` files. Use **Import v1 data** from the tray to copy old channel/history data. Both 32-bit and 64-bit v1 archive layouts are recognized. Original files remain untouched. Registered format IDs in old archives cannot reliably identify formats across Windows sessions; safe import recovers standard text, images and file lists. The optional same-session import also recovers registered formats when their IDs still match.
+
+New `.cjc` archives store registered format **names** and binary payloads, making them independent of session IDs and interpreter architecture. History and channel copies retain rich data. Text editing or a formatting command explicitly creates plain text.
+
+V1 third-party scripts need a native v2 port. The bundled formatting/maintenance tools have native v2 equivalents. See [migration, plugins, custom actions and API](docs/PORTING-V2.md). Old source is retained in the repository for reference and excluded from portable v2 packages.
 
 ## Build and test
 
-From PowerShell in this repository:
+Run sequentially on an interactive Windows desktop with other clipboard managers closed:
 
 ```powershell
-powershell -File scripts/Build.ps1 -Architecture x64
-powershell -File scripts/Test.ps1 -Architecture x64
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Build.ps1 -Architecture x64
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Test.ps1 -Architecture x64
 ```
 
-Use `-Architecture x86` for the alternative runtime. ZIPs are written to `dist/`; logs are written to `test-results/`. Downloads use pinned vendor URLs and checksums in [scripts/dependencies.json](scripts/dependencies.json).
+Repeat with `x86` for the other runtime. Downloads are verified against pinned vendor SHA-256 checksums. Packages in `dist/` exclude developer caches, user settings, clipboard data and v1 code. Test logs are in `test-results/`.
 
-The application and plugins use **AutoHotkey v1**, specifically the final v1.1.37.02 Unicode runtime. They do not run under AutoHotkey v2. Native ARM64 and a v2 port require further work; x64 emulation on ARM64 has not been validated. Source builds should use the packaged matching interpreter and SQLite DLL.
-
-[Testing details](docs/TESTING.md) · [Compatibility and limits](docs/COMPATIBILITY.md) · [Third-party notices](THIRD-PARTY-NOTICES.md)
+[Validation](docs/TESTING.md) · [Compatibility](docs/COMPATIBILITY.md) · [Porting guide](docs/PORTING-V2.md) · [Third-party notices](THIRD-PARTY-NOTICES.md)
