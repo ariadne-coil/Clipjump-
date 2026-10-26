@@ -245,21 +245,16 @@ objEditButtonSv:
 
 ;Try getting a file onto Clipboard
 try_ClipboardfromFile(file, maxtries=100){
-	;Critical, Off
-	temp_ClipbrdLoaded := 0
-	while !temp_ClipbrdLoaded
-	{
-		try {
-			if A_index > %maxtries%
-				break
-			FileRead, Clipboard, *c %file%
-			temp_ClipbrdLoaded := 1
-		}
+	if !FileExist(file)
+		return false
+	if !CJ_ClipboardWait(Min(maxtries * 10, 1000))
+		return false
+	try {
+		FileRead, Clipboard, *c %file%
+		return !ErrorLevel
+	} catch {
+		return false
 	}
-	while !DllCall("OpenClipboard", "int", "")
-		sleep 10
-	DllCall("CloseClipboard")
-	return temp_ClipbrdLoaded
 }
 
 getRealCD(text){
@@ -294,38 +289,32 @@ ClipFolderTransfer(sub, nsub, keep_original=1, flag=1){
 ;Checks and makes sure Clipboard is available
 ;Use 0 as the param when for calling the function, the aim is only to free clipboard and not get its contents
 MakeClipboardAvailable(doreturn=1, sleeptime=10){
-	;Critical, On
-	while !temp
-	{
-		temp := DllCall("OpenClipboard", "int", "")
-		sleep % sleeptime
+	if !CJ_ClipboardWait(500)
+		return ""
+	if doreturn {
+		try return Clipboard
 	}
-	DllCall("CloseClipboard")
-	if doreturn
-		ret := Clipboard
-	return ret
+	return ""
 }
 
 ;type=1
 ;	returns Text
 ;type=0
 ;	returns data types
-GetClipboardFormat(type=1){		;Thanks nnnik
-	Critical, On
-	DllCall("OpenClipboard", "int", "")
-	while c := DllCall("EnumClipboardFormats","Int",c?c:0)
+GetClipboardFormat(type=1){
+	if !DllCall("OpenClipboard", "Ptr", A_ScriptHwnd)
+		return ""
+	x := "", c := 0
+	while (c := DllCall("EnumClipboardFormats", "UInt", c, "UInt"))
 		x .= "," c
 	DllCall("CloseClipboard")
-
-	if type=1
-		if Instr(x, ",1") and Instr(x, ",13")
-			return "[" TXT.TIP_text "]"
-		else If Instr(x, ",15")
-			return "[" TXT.TIP_file_folder "]"
-		else
-			return ""
-	else
+	if !type
 		return x
+	if RegExMatch(x ",", ",15,")
+		return "[" TXT.TIP_file_folder "]"
+	if RegExMatch(x ",", ",(1|13),")
+		return "[" TXT.TIP_text "]"
+	return ""
 }
 
 ;--------------------------------------------------------------------------
@@ -368,12 +357,12 @@ getFromTable(tbl, cols, condition){
 	recordSet := ""
 	if !DB.Query(q, recordSet)
 		msgbox ERROR
-	if (recordSet.RowCount == 0)
+	if (recordSet.Next(Row) != 1) {
+		recordSet.Free()
 		return ""
-	else {
-		recordSet.Next(Row)
-		return Row
 	}
+	recordSet.Free()
+	return Row
 }
 
 saveBlobImage(blobobj, path){

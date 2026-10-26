@@ -1,4 +1,4 @@
-;History Gui labels and functions
+﻿;History Gui labels and functions
 ;A lot Thanks to chaz who first improved it
 
 /**
@@ -184,7 +184,10 @@ history_EditClip: 		; label inside to call history_searchbox which uses local fu
 		STORE.ErrorLevel := 0
 		out := multInputBox("Edit Clip", "Make your changes and then click OK", 10, data[1], "History")
 		if (STORE.ErrorLevel == 1){
-			execSql("update history set data=""" escapeQuotesSql(out) """ where id=" clip_id, 1)
+			oldArchive := getFromTable("history", "snapshot", "id=" clip_id)[1]
+			if CJ_ExecBound(DB, "UPDATE history SET data=?1, snapshot='' WHERE id=?2", [out, clip_id])
+				if oldArchive
+					FileDelete, % oldArchive
 		}
 	}
 	gosub history_SearchBox
@@ -324,7 +327,9 @@ gui_Clip_Preview(path, searchBox="", owner="History")
  */
 button_Copy_to_Clipboard:
 	Gui, Preview:Submit, nohide
-	if !preview.isimg
+	if (preview.owner = "History")
+		history_clipboard()
+	else if !preview.isimg
 		try Clipboard := prev_handle.Document.body.innerText
 	else
 		Gdip_SetImagetoClipboard(preview.path)
@@ -416,11 +421,15 @@ history_clipboard(sTartRow=0){
 		return 0
 	LV_GetText(clip_id, row_selected, hidden_date_no)
 
-	if (HISTORYOBJ[clip_id] == 0) {
-		FileRead, temp_Read, cache\history\%clip_id%
+	archive := getFromTable("history", "snapshot", "id=" clip_id)[1]
+	if (archive != "") {
+		; A missing rich archive is an explicit failure, never silently plain text.
+		if !try_ClipboardfromFile(archive)
+			return 0
+	} else if (HISTORYOBJ[clip_id] == 0) {
 		temp_read := getFromTable("history", "data", "id=" clip_id)[1]
-		try Clipboard := temp_Read
-	} else if (HISTORYOBJ[clip_id] == 1) { ; in case row_selected=0 , this case ensures the code is not executed
+		try Clipboard := temp_read
+	} else if (HISTORYOBJ[clip_id] == 1) {
 		filepath := getFromTable("history", "fileid", "id=" clip_id)[1]
 		Gdip_SetImagetoClipboard(filepath)
 	}
@@ -443,18 +452,7 @@ historyUpdate(crit="", create=true, partial=false){
 	LV_Delete()
 	func := Func(partial ? "Superinstr" : "Instr") , thirdpm := partial ? 1 : 0		;The third param 0 has diff meanings in both cases
 
-	crit := trim(crit)
-	if (crit == ""){
-		q := "select * from history"
-	} else if partial {
-		likestr := ""
-		loop, parse, crit, % " `t", % " `t"
-			likestr .= "data like ""%" A_loopfield "%"" and "
-		likestr := Substr(likestr, 1, -4)
-		q := "select * from history where " likestr
-	} else {
-		q := "select * from history where data like ""%" crit "%"""
-	}
+	q := CJ_HistorySearchSql(crit, partial)
 
 	result := ""
 	if !DB.GetTable(q, result)
@@ -636,61 +634,21 @@ LV_SortArrow(h, c, d="")	; by Solar (http://www.autohotkey.com/forum/viewtopic.p
 ; --------------------------- SQL STORAGE FUNCTIONS --------------------------------------
 
 createHisTable(){
-; creates the History Table if it doesnt exist
-; called by the migrateHistory function
-	q = 
-	(
-		CREATE TABLE if not exists history `(
-		id	INTEGER PRIMARY KEY AUTOINCREMENT,
-		data 	TEXT,
-		type	INTEGER,
-		fileid 	TEXT,
-		time	TEXT,
-		size 	INTEGER
-		`)
-	)
-	if !DB.Exec(q)
-		msgbox % "db create history table"
+	return CJ_HistoryEnsureSchema(DB)
 }
 
-addHistoryText(data, timestamp){
-; adds some text data to history
-; the timestamp is in A_Now format
-	timestamp := convertTimeSql( timestamp )
-	q := "insert into history (data, type, time, size) values (""" 
-		. escapeQuotesSql(data)
-		. """, 0, """ 
-		. timestamp """, "
-		. fileSizeFromStr(data) ")"
-	if (!DB.Exec(q))
-		msgbox % q
+addHistoryText(data, timestamp, ByRef snapshot := ""){
+	return CJ_HistoryWrite(DB, data, convertTimeSql(timestamp), snapshot)
 }
 
-addHistoryImage(imgpath, timestamp){
-; addes image to history
-; image specified by image path (imgpath)
-; timestamp is in A_Now format
-	timestamp := convertTimeSql(timestamp)
-	fptr := FileOpen(imgpath, "r")
-	size := fptr.Length
-	fptr.Close()
-	while (FileExist(rname := "cache\history\" getRandomStr(15) ".jpg")){
-		; loop till new file name
-	}
-
-	FileCopy, % imgpath, % rname
-	q := "insert into history (data, type, time, size, fileid) values ("
-		. """[IMAGE]"", " 
-		. 1 ","
-		. """" timestamp """, "
-		. size ", "
-		. """" rname """)"
-
-	If !DB.Exec(q)
-		MsgBox, 16, SQLite Error, % "Msg:`t" . DB.ErrorMsg . "`nCode:`t" . DB.ErrorCode
+addHistoryImage(imgpath, timestamp, ByRef snapshot := ""){
+	return CJ_HistoryWrite(DB, "[IMAGE]", convertTimeSql(timestamp), snapshot, imgpath)
 }
 
 deleteHistoryById(id){
+	archive := getFromTable("history", "snapshot", "id=" id)[1]
+	if archive
+		FileDelete, % archive
 ; deletes a history element by its ID in the table
 	if (HISTORYOBJ[id] == 1){
 		imgpath := getFromTable("history", "fileid", "id=" id)[1]
@@ -708,8 +666,10 @@ fillHISTORYOBJ(){
 	result := ""
 	if !DB.GetTable(q, result)
 		msgbox error
-	loop % result.RowCount
+	loop % result.RowCount {
+		result.Next(Row)
 		HISTORYOBJ[Row[1]] := Row[2]
+	}
 }
 
 ;------------------------------------ MIGRATE ----------------------------------------------

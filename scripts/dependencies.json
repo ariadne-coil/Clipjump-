@@ -1,0 +1,18 @@
+{
+  "autohotkey": {
+    "version": "1.1.37.02",
+    "url": "https://www.autohotkey.com/download/1.1/AutoHotkey_1.1.37.02.zip",
+    "sha256": "6f3663f7cdd25063c8c8728f5d9b07813ced8780522fd1f124ba539e2854215f"
+  },
+  "sqlite": {
+    "version": "3.54.1",
+    "x64": {
+      "url": "https://www.sqlite.org/2026/sqlite-dll-win-x64-3540100.zip",
+      "sha256": "f436f53ad8f965af43f3817b42c99c0689e6787f6b7ace208fe38dab7ffc4971"
+    },
+    "x86": {
+      "url": "https://www.sqlite.org/2026/sqlite-dll-win-x86-3540100.zip",
+      "sha256": "431cc1f1e1b8efffb2f99b534b89dcacb07416fc1bc9f1110c1a01e643632bed"
+    }
+  }
+}

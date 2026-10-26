@@ -36,7 +36,7 @@ Class SQLiteDB Extends SQLiteDB.BaseClass {
    ; ===================================================================================================================
    Class BaseClass {
       Static Version := ""
-      Static _SQLiteDLL := A_ScriptDir . "\SQLite3.dll"
+      Static _SQLiteDLL := A_ScriptDir . "\runtime\" . (A_PtrSize = 8 ? "x64" : "x86") . "\sqlite3.dll"
       Static _RefCount := 0
       Static _MinVersion := 36
    }
@@ -273,6 +273,9 @@ Class SQLiteDB Extends SQLiteDB.BaseClass {
       This._Queries := {}               ; Valid queries                                 (Object)
       If (This.Base._RefCount = 0) {
          SQLiteDLL := This.Base._SQLiteDLL
+         If !FileExist(SQLiteDLL) {
+            This.Base._SQLiteDLL := SQLiteDLL := A_ScriptDir . "\SQLite3.dll"
+         }
          If !FileExist(SQLiteDLL)
             If FileExist(A_ScriptDir . "\SQLiteDB.ini") {
                IniRead, SQLiteDLL, %A_ScriptDir%\SQLiteDB.ini, Main, DllPath, %SQLiteDLL%
@@ -283,7 +286,9 @@ Class SQLiteDB Extends SQLiteDB.BaseClass {
             ExitApp
          }
          This.Base.Version := StrGet(DllCall("SQlite3.dll\sqlite3_libversion", "Cdecl UPtr"), "UTF-8")
-         If (SubStr(RegExReplace(This.Base.Version, "\."), 1, 2) < This.Base._MinVersion) {
+         ; Compare SQLite's numeric version (3*1000000 + minor*1000 + patch).
+         ; The old first-two-digits comparison rejected every 3.10-3.59 DLL.
+         If (DllCall("SQLite3.dll\sqlite3_libversion_number", "Cdecl Int") < 3006000) {
             DllCall("FreeLibrary", "Ptr", DLL)
             MsgBox, 16, SQLite ERROR, % "Version " . This.Base.Version .  " of SQLite3.dll is not supported!`n`n"
                                       . "You can download the current version from www.sqlite.org!"

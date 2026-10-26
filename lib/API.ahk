@@ -46,19 +46,22 @@ class API
 	; if both are blank, paste 1st clip from currently active channel
 	paste(channel="", clipno=""){
 		this.blockMonitoring(1)
+		loaded := true
 		if  (channel="") && (clipno="")
 		{
 			if !IsCurCBActive
-				try FileRead, Clipboard, *c %A_WorkingDir%\%CLIPS_dir%\%TEMPSAVE%.avc
+				loaded := try_ClipboardFromFile(A_WorkingDir "\" CLIPS_dir "\" TEMPSAVE ".avc")
 		}
 		else {
 			r := this.getClipLoc(channel, clipno)
-			try_ClipboardFromFile(r, 10)
+			loaded := try_ClipboardFromFile(r, 10)
 			;try Fileread, Clipboard, *c %r%
 		}
 
-		Send ^{vk56}
+		if loaded
+			Send ^{vk56}
 		this.blockMonitoring(0)
+		return loaded
 	}
 
 	; get Clip content
@@ -68,12 +71,9 @@ class API
 		if toreturn=1
 			ret := CDS[channel][ this.getChStrength(channel)-clipno+1 ]
 		else {
-			this.blockMonitoring(1)
 			r := this.getClipLoc(channel, clipno)
-			try Fileread, Clipboard, *c %r%
-			err := GetClipboardformat()="" ? 0 : 1
-			ret := ClipboardAll
-			this.blockMonitoring(0)
+			FileRead, ret, *c %r%
+			err := !ErrorLevel
 		}
 		return ret
 	}

@@ -8,3 +8,7 @@ website/.jekyll-metadata
 cache/
 settings.ini
 ClipjumpCustom.ini
+.tools/
+runtime/
+dist/
+test-results/

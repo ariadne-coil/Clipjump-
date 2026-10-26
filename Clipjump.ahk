@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Clipjump
 
 	Copyright 2013-15 Avi Aryan
@@ -18,15 +18,16 @@
 
 ;@Ahk2Exe-SetName Clipjump
 ;@Ahk2Exe-SetDescription Clipjump
-;@Ahk2Exe-SetVersion 12.5
+;@Ahk2Exe-SetVersion 12.6.0
 ;@Ahk2Exe-SetCopyright Avi Aryan
 ;@Ahk2Exe-SetOrigFilename Clipjump.exe
 
+#Requires AutoHotkey v1.1.37+
 SetWorkingDir, %A_ScriptDir%
 SetBatchLines,-1
 #NoEnv
 #SingleInstance, force
-#ClipboardTimeout 0              ;keeping this value low as I already check for OpenClipboard in OnClipboardChange label
+#ClipboardTimeout 250            ;bounded access; delayed rendering runs in a worker
 CoordMode, Mouse
 CoordMode, Tooltip
 FileEncoding, UTF-8
@@ -44,19 +45,21 @@ PROGRAM VARIABLES
 **********************
 */
 
-global PROGNAME := "Clipjump"
-global VERSION := "12.5"
+global PROGNAME := "Clipjump Modern"
+global VERSION := "12.6.0-beta.1"
 global CONFIGURATION_FILE := "settings.ini"
+global smokeTest := (A_Args.Length() && A_Args[1] = "--smoke-test")
+global startupClipboardSequence := CJ_ClipboardSequence()
 
 ini_LANG := ini_read("System", "lang")
 if !ini_LANG
 	ini_LANG := "english"
 global TXT := Translations_load("languages/" ini_LANG ".txt") 		;Load translations
 
-global UPDATE_FILE := "http://sourceforge.net/projects/clipjump/files/version.txt/download"
-global PRODUCT_PAGE := "http://clipjump.sourceforge.net"
-global HELP_PAGE := "http://clipjump.sourceforge.net/docs"
-global AUTHOR_PAGE := "http://aviaryan.in"
+global UPDATE_FILE := "https://github.com/ariadne-coil/Clipjump-/releases"
+global PRODUCT_PAGE := "https://github.com/ariadne-coil/Clipjump-"
+global HELP_PAGE := "https://github.com/ariadne-coil/Clipjump-/blob/master/docs/COMPATIBILITY.md"
+global AUTHOR_PAGE := "https://github.com/aviaryan"
 
 global MSG_TRANSFER_COMPLETE
  , MSG_CLIPJUMP_EMPTY
@@ -92,7 +95,7 @@ FileSetAttrib, -H, %A_WorkingDir%\cache
 
 ;Init Non-Ini Configurations
 FileDelete, % A_temp "/clipjumpcom.txt"
-try Clipboard := ""
+; Keep the live clipboard intact during startup.
 
 
 /*
@@ -105,7 +108,7 @@ global WORKINGHT := tempbottom-temptop, restoreCaller := 0, startUpComplete := 0
 
 ;Global Inits
 global CN := {}, CUSTOMS := {}, CDS := {}, CPS := {}, SEARCHOBJ := {}, HISTORYOBJ := {}, TOTALCLIPS, ACTIONMODE := {}, PLUGINS := {}, STORE := {}
-global cut_is_delete_windows := "XLMAIN QWidget" 			;excel, kingsoft office
+global cut_is_delete_windows := "" 			;excel, kingsoft office
 global CURSAVE, TEMPSAVE, LASTCLIP, LASTFORMAT, Islastformat_Changed := 1, IScurCBACTIVE := 0, curPformat, curPfunction, curPisPreviewable
 global NOINCOGNITO := 1, SPM := {}, protected_DoBeep := 1
 global pastemodekey := {} , spmkey := {}
@@ -116,6 +119,8 @@ global CALLER_STATUS, CLIPJUMP_STATUS := 1		; global vars are not declared like 
 global CALLER := CALLER_STATUS := 1, IN_BACK := 0, MULTIPASTE, PASTEMODE_ACT
 global CLIP_ACTION := "", ONCLIPBOARD := 1 , ISACTIVEEXCEL := 0 , HASCOPYFAILED := 0 , ctrlRef		;specific purpose global vars
 global wasManualClipboard := false
+global bypassClipboardUntil := 0
+global ClipboardCapture, capturedClipboardSequence := 0, currentClipboardSnapshot
 
 ;Global Ini declarations
 global ini_IsImageStored , ini_Quality , ini_MaxClips , ini_Threshold , ini_isMessage, CopyMessage, ini_DaysToStore
@@ -148,21 +153,21 @@ Iniread, ini_Version, %CONFIGURATION_FILE%, System, Version
 If !FileExist(CONFIGURATION_FILE)
 {
 	save_default(1)
-	if !Instr(VERSION, "b") 		; betas have b
+	if !smokeTest && !Instr(VERSION, "b") 		; betas have b
 	{
 		MsgBox, 52, Recommended, % TXT.ABT_seehelp
 		IfMsgBox, Yes
 			gosub, hlp
 	}
-	if !A_IsAdmin
-		MsgBox, 16, WARNING, % TXT.ABT_runadmin
 	try TrayTip, Clipjump, % TXT.ABT_cjready , 10, 1
 }
 else if (ini_Version != VERSION)
 {
 	save_default(0) 			;0 corresponds to selective save
-	gosub Reload 		; Update plugin includes with what the user has incase he updates his Clipjump
-	sleep 10000 		; to counter race condition
+	if !smokeTest
+		gosub Reload 		; Update plugin includes with what the user has incase he updates his Clipjump
+	if !smokeTest
+		sleep 10000 		; to counter race condition
 }
 
 ; start history
@@ -172,8 +177,10 @@ if (!FileExist(DBPATH))
 	isnewdb := 1
 else
 	isnewdb := 0
-if (!DB.OpenDB(DBPATH))
-	msgbox some error occured
+if (!DB.OpenDB(DBPATH) || !CJ_HistoryEnsureSchema(DB)) {
+	MsgBox, 16, Clipjump Modern, Unable to open clipboard history. Check folder write access.
+	ExitApp, 1
+}
 
 /*
 ***********************
@@ -282,9 +289,13 @@ IfExist, %A_Startup%/Clipjump.lnk
 	Menu, Options_Tray, Check, % TXT.TRY_startup
 }
 EmptyMem()
-lastClipboardTime := 0
+ClipboardCapture := new CJ_CaptureJob(A_ScriptDir "\cache\capture", A_AhkPath, A_ScriptDir "\lib\clipboardCaptureWorker.ahk")
 startUpComplete := 1
 OnExit, exit
+if smokeTest {
+	FileAppend, % "STARTUP_OK clipboard_unchanged=" (CJ_ClipboardSequence() = startupClipboardSequence) " sqlite=" DB.Version " bits=" (A_PtrSize * 8) "`n", *
+	gosub exit
+}
 
 return
 
@@ -294,8 +305,8 @@ return
 ;End Of Auto-Execute================================================================================================================
 
 loadClipboardDataS(){
-	API.showTip(TXT.TIP_initMsg)
-	API.blockMonitoring(1)
+	; Read cached text directly from the binary archive. Startup must never
+	; publish every historical clip to the user's live clipboard.
 	loop % CN.Total
 	{
 		fp := "cache\clips" ( A_index-1 ? A_index-1 : "" )
@@ -303,22 +314,18 @@ loadClipboardDataS(){
 		CPS[R] := ini2Obj(fp "\prefs.ini")
 		loop, % fp "\*.avc"
 		{
-			ONCLIPBOARD:="" , Z := ""
-			if try_ClipboardfromFile(A_LoopFileFullPath, 300)
-				Z := trygetVar("Clipboard", 500) 	; 300 tries minimize chances of Clipboard recorders like Exekutor to interrupt 
-			else ONCLIPBOARD := 1 , Z := ""
-
-			while !ONCLIPBOARD
-				sleep 5
-			CDS[R][Substr(A_LoopFileName,1,-4)] := Z
+			FileRead, snapshot, *c %A_LoopFileFullPath%
+			CDS[R][Substr(A_LoopFileName,1,-4)] := ErrorLevel ? "" : CJ_SnapshotText(snapshot)
 		}
 	}
-	API.removeTip()
-	API.blockMonitoring(0)
 }
 
 paste:
 	Critical, On
+	if (!ctrlRef && CJ_ClipboardSequence() != capturedClipboardSequence) {
+		Send ^{vk56}
+		return
+	}
 	IfWinActive, ahk_group ignoreGroup
 	{
 		Send ^{vk56}
@@ -343,7 +350,7 @@ paste:
 		if !oldclip_exist
 		{
 			oldclip_exist := 1
-			try oldclip_data := ClipboardAll
+			oldclip_data := currentClipboardSnapshot
 		}
 
 		try Clipboard := ""
@@ -356,10 +363,7 @@ paste:
 		if !oldclip_exist 					;will be false when V is pressed for 1st time
 		{
 			oldclip_exist := 1
-			try oldclip_data := ClipboardAll
-			catch {
-				makeClipboardAvailable(0)  						; make clipbboard available in case it is blocked
-			}
+			oldclip_data := currentClipboardSnapshot
 		}
 		else
 			IScurCBACTIVE := 0 				;false it when V is pressed for the 2nd time
@@ -367,8 +371,13 @@ paste:
 		if !is_pstMode_active
 			hkZ_pasteMode(1) , is_pstMode_active := 1
 
-		if !IScurCBACTIVE 				;if the current clipboard is not asked for , then only load from file
-			try_ClipboardfromFile(A_WorkingDir "/" CLIPS_dir "/" TEMPSAVE ".avc") 	; gets file onto clipboard trying 100 times
+		if !IScurCBACTIVE {
+			if !try_ClipboardfromFile(A_WorkingDir "/" CLIPS_dir "/" TEMPSAVE ".avc") {
+				gosub endPastemode
+				autoTooltip("Clipboard is busy or this clip cannot be read. Please try again.", 1200)
+				return
+			}
+		}
 
 		temp_clipboard := trygetVar("Clipboard")  	;gets variable with multiple tries
 
@@ -400,145 +409,111 @@ paste:
 
 onClipboardChange:
 	Critical, On
-	if !ONCLIPBOARD
-	{
-		ONCLIPBOARD:=1 	; if let blank, the label ends quickly
+	if !ONCLIPBOARD {
+		ONCLIPBOARD := 1
+		if IsObject(ClipboardCapture)
+			ClipboardCapture.Cancel()
 		return
 	}
-	ONCLIPBOARD := 1 		;used by paste/or another to identify if OnCLipboard has been breached
-	if !startUpComplete 	;if not started, not allow - after onclipboard=1 as the purpose of onc is served
+	ONCLIPBOARD := 1
+	if !startUpComplete
 		return
-	; check for machine-done clipboard manipulations
-	timeDiff := TickCount64() - lastClipboardTime
-	lastClipboardTime := TickCount64()
-	if (timeDiff < 200){
-		return
-	}
-	; check monitor clipboard setting
-	if (ini_monitorClipboard == 0) {
-		if (wasManualClipboard == false){
-			return
-		} else {
-			wasManualClipboard := false
-			setTimer, manualClipboardTimer, Off
-		}
-	}
-	; ignore windows
-	ifwinactive, ahk_group IgnoreGroup
-		return
-
-	;debugTip("1") ;<<<<<<<
-	If CALLER
-	{
-		STORE.CBCaptured := 0
-		if !WinActive("ahk_class XLMAIN")
-			 try   clipboard_copy := makeClipboardAvailable() , ISACTIVEEXCEL := 0
-		else try   clipboard_copy := LASTCLIP , ISACTIVEEXCEL := 1  	;so that Cj doesnt open excel clipboard (for a longer time) and cause problems 
-		;clipboard_copy = lastclip as to remove duplicate copies in excel , ^x or ^c makes lastclip empty
-		;debugTip("2") ;<<<<<<<<<
-		try eventinfo := A_eventinfo
-
-		if ISACTIVEEXCEL
-			isLastFormat_changed := 1                           ;same reason as above
-		else
-			try isLastFormat_changed :=  ( LASTFORMAT != (temp_lastformat := GetClipboardFormat(0)) )   ?   1   :   0
-		if isLastFormat_changed or ( LASTCLIP != clipboard_copy) or ( clipboard_copy == "" )
-			returnV := clipChange(eventinfo, clipboard_copy)
-		LASTFORMAT := temp_lastformat , CLIP_ACTION := returnV ? "" : CLIP_ACTION  		;make CLIP_ACTION empty if copy/cut succeeded else let it be so that if window uses
-			;2 transfers like Excel , the demand can be fulfilled
-		IScurCBACTIVE := returnV 									;current clipboard is active after new data copied to clipboard SUCCESSFULLY
-		if CPS[CN.NG][CURSAVE][FIXATE_txt]	; not active if the first clip is FIXED
-			IScurCBACTIVE := 0
-		if !ISACTIVEEXCEL 				;excel has known bugs with AHK and manipulating clipboard *infront* of it will cause errors
-			makeClipboardAvailable(0) 						;close clipboard in case it is still opened by clipjump
-		;debugTip("") ;<<<<<<<<<<<<
-		STORE.CBCaptured := 1
-	}
-	else
-	{
-		;debugTip("pst mode 2") ;<<<<<<<<<<<<
-		LASTFORMAT := WinActive("ahk_class XLMAIN") ? "" : GetClipboardFormat(0)
+	if !CALLER {
+		ClipboardCapture.Cancel()
 		if restoreCaller
-			restoreCaller := "" , CALLER := CALLER_STATUS
-		if onetimeOn
-		{
-			onetimeOn := 0 ;--- To avoid OnClipboardChange label to open this routine [IMPORTANT]
-			sleep 500 ;--- Allows the restore Clipboard Transfer in apps
+			restoreCaller := "", CALLER := CALLER_STATUS
+		if onetimeOn {
+			onetimeOn := 0
 			CALLER := CALLER_STATUS
 			autoTooltip("One Time Stop " TXT.TIP_deactivated, 600, 2)
 			changeIcon()
 		}
-		;debugTip("") ;<<<<<<<<<<
+		return
 	}
+	if ((TickCount64() < bypassClipboardUntil) || (!ini_monitorClipboard && !wasManualClipboard) || WinActive("ahk_group IgnoreGroup") || !A_EventInfo) {
+		ClipboardCapture.Cancel()
+		IScurCBACTIVE := 0
+		return
+	}
+	; Debounce the final notification rather than discarding rapid changes.
+	ClipboardCapture.Queue(A_EventInfo, CN.NG)
+	SetTimer, captureClipboard, 50
 	return
 
-clipChange(CErrorlevel, clipboard_copy) {
+captureClipboard:
+	Critical, On
+	if (!CALLER || !CALLER_STATUS || ClipboardCapture.Channel != CN.NG || WinActive("ahk_group IgnoreGroup")) {
+		ClipboardCapture.Cancel()
+		SetTimer, captureClipboard, Off
+		return
+	}
+	captureStatus := ClipboardCapture.Poll()
+	if (captureStatus = "waiting")
+		return
+	SetTimer, captureClipboard, Off
+	if (captureStatus != "ready") {
+		STORE.CBCaptured := 1
+		return
+	}
+	FileRead, captureData, % "*c " ClipboardCapture.Prefix ".avc"
+	captureReadFailed := ErrorLevel
+	FileRead, captureText, % "*P65001 " ClipboardCapture.Prefix ".txt"
+	captureReadFailed := captureReadFailed || ErrorLevel
+	captureSequence := ClipboardCapture.Sequence
+	ClipboardCapture.Cancel()
+	if (captureReadFailed || captureSequence != CJ_ClipboardSequence())
+		return
+	STORE.CBCaptured := 0
+	if (!ini_is_duplicate_copied && CJ_SnapshotEqualsFile(CLIPS_dir "/" CURSAVE ".avc", captureData)) {
+		returnV := 1
+		IScurCBACTIVE := 1
+	} else {
+		returnV := clipChange(captureText = "" ? 2 : 1, captureText, captureData, captureSequence)
+		IScurCBACTIVE := returnV && (captureSequence = CJ_ClipboardSequence())
+	}
+	if returnV {
+		currentClipboardSnapshot := captureData
+		capturedClipboardSequence := captureSequence
+	} else {
+		capturedClipboardSequence := 0
+	}
+	if CPS[CN.NG][CURSAVE][FIXATE_txt]
+		IScurCBACTIVE := 0
+	LASTCLIP := captureText
+	CLIP_ACTION := ""
+	wasManualClipboard := false
+	SetTimer, manualClipboardTimer, Off
+	STORE.CBCaptured := 1
+	return
 
-	If CErrorlevel = 1
-	{
-		if ( clipboard_copy != LASTCLIP ) or ( clipboard_copy == "" )        ;dont let go if lastclip = clipboard_copy = <empty>
-		{
-			CURSAVE += 1
-
-			if ISACTIVEEXCEL
-				LASTCLIP := clipsaver()
+clipChange(kind, clipboard_copy, ByRef snapshot, expectedSequence) {
+	CURSAVE += 1
+	clipSaver(snapshot, clipboard_copy)
+	if HASCOPYFAILED {
+		CURSAVE -= 1, TEMPSAVE := CURSAVE
+		return 0
+	}
+	LASTCLIP := clipboard_copy
+	if (kind = 1) {
+		if NOINCOGNITO && (CN.Name != "pit")
+			addHistoryText(clipboard_copy, A_Now, snapshot)
+	} else if (CJ_ClipboardSequence() = expectedSequence) {
+		CJ_SaveThumbnail(snapshot, THUMBS_dir "\" CURSAVE ".jpg", ini_Quality)
+		if (NOINCOGNITO && ini_IsImageStored && CN.Name != "pit")
+			if FileExist(THUMBS_dir "\" CURSAVE ".jpg")
+				addHistoryImage(THUMBS_dir "\" CURSAVE ".jpg", A_Now, snapshot)
 			else
-				LASTCLIP := clipboard_copy , temp := clipSaver()
-
-			If HASCOPYFAILED
-			{
-				CURSAVE -= 1 , TEMPSAVE := CURSAVE
-				return
-			}
-
-			if NOINCOGNITO and ( CN.Name != "pit" ){
-				addHistoryText(LASTCLIP, A_now)
-			}
-
-			BeepAt(ini_CopyBeep, beepFrequency)
-			ToolTip, %copyMessage%
-
-			if CLIP_ACTION = CUT
-			{
-				WinGetClass, activeclass, A
-				if Instr(cut_is_delete_windows, activeclass)
-					Send {vk2e} 			;del
-			}
-
-			TEMPSAVE := CURSAVE
-			while ( CURSAVE >= TOTALCLIPS )
-				compacter()
-
-			returnV := 1
-		}
+				addHistoryText("[BINARY CLIP]", A_Now, snapshot)
 	}
-	else If CErrorlevel = 2
-	{
-			CURSAVE += 1 , TEMPSAVE := CURSAVE , LASTCLIP := ""
-
-			clipSaver()
-			if HASCOPYFAILED
-			{
-				CURSAVE -= 1 , TEMPSAVE := CURSAVE
-				return
-			}
-
-			BeepAt(ini_CopyBeep, beepFrequency)
-			ToolTip, %copyMessage%
-			thumbGenerator()
-
-			if NOINCOGNITO and ini_IsImageStored and ( CN.Name != "pit" ){
-				addHistoryImage(THUMBS_dir "\" CURSAVE ".jpg", A_Now)
-			}
-
-			while ( CURSAVE >= TOTALCLIPS )
-				compacter()
-
-			returnV := 2
-	}
+	; Native Ctrl-X owns cut semantics. Never send Delete to an Office document.
+	BeepAt(ini_CopyBeep, beepFrequency)
+	ToolTip, % copyMessage
+	TEMPSAVE := CURSAVE
+	while (CURSAVE >= TOTALCLIPS)
+		compacter()
 	SetTimer, TooltipOff, 500
-	emptyMem()
-	return returnV
+	EmptyMem()
+	return kind
 }
 
 moveBack:
@@ -552,7 +527,11 @@ moveBack:
 		TEMPSAVE := 1
 	realActive := TEMPSAVE
 	IScurCBACTIVE := 0 			;the key will be always pressed after V
-	try_ClipboardfromFile(CLIPS_dir "/" TEMPSAVE ".avc")
+	if !try_ClipboardfromFile(CLIPS_dir "/" TEMPSAVE ".avc") {
+		gosub endPastemode
+		autoTooltip("Clipboard is busy or this clip cannot be read. Please try again.", 1200)
+		return
+	}
 	temp_clipboard := trygetVar("Clipboard")
 
 	fixStatus := fixCheck()
@@ -637,13 +616,7 @@ deleteall:
 
 nativeCopy:
 	Critical
-	if WinActive("ahk_class XLMAIN")
-	{
-		copyCutShortcuts(0)
-		hkZ("$^c", "keyblocker")
-		LASTCLIP := ""
-		setTimer, ctrlforCopy, 50
-	}
+	bypassClipboardUntil := 0
 	if ini_is_duplicate_copied
 		LASTCLIP := ""
 	CLIP_ACTION := "COPY"
@@ -654,19 +627,33 @@ nativeCopy:
 
 nativeCut:
 	Critical
-	if WinActive("ahk_class XLMAIN")
-	{
-		copyCutShortcuts(0)
-		hkZ("$^x", "keyblocker")
-		LASTCLIP := ""
-		setTimer, ctrlforCopy, 50
-	}
+	bypassClipboardUntil := 0
 	if ini_is_duplicate_copied
 		LASTCLIP := ""
 	CLIP_ACTION := "CUT"
 	wasManualClipboard := true
 	setTimer, manualClipboardTimer, -1000
 	Send, ^{vk58}
+	return
+
+nativeCopyObserved:
+	Critical
+	CLIP_ACTION := "COPY", wasManualClipboard := true, bypassClipboardUntil := 0
+	SetTimer, manualClipboardTimer, -1000
+	return
+
+nativeCutObserved:
+	Critical
+	CLIP_ACTION := "CUT", wasManualClipboard := true, bypassClipboardUntil := 0
+	SetTimer, manualClipboardTimer, -1000
+	return
+
+windowsCopyObserved:
+windowsCutObserved:
+	Critical
+	wasManualClipboard := false
+	bypassClipboardUntil := TickCount64() + 1000
+	ClipboardCapture.Cancel()
 	return
 
 ctrlForCopy:
@@ -759,62 +746,27 @@ setClipTag:
 	EmptyMem()
 	return
 
-clipSaver() {
-	FileDelete, %CLIPS_dir%/%CURSAVE%.avc
-	HASCOPYFAILED := 0
-
-	Tooltip, % TXT["_processing"],,, 7
-	while !copied
-	{
-		if ( A_index=100 ) or HASCOPYFAILED {
-			HASCOPYFAILED := 1
-			Tooltip,,,, 7
+clipSaver(ByRef snapshot, capturedText) {
+	HASCOPYFAILED := 1
+	if (Substr(CN.Name, 1, 1) = "_") {
+		Critical, Off
+		BeepAt(protected_DoBeep, 2000, 200)
+		answer := TT_Console("{" CN.Name "}`n " TXT.TIP_confirmcopy, "Y N Insert")
+		Critical, On
+		if (answer != "Y") {
+			if (answer = "Insert") {
+				; Move the captured binary, not a later live clipboard value.
+				API.AddClip(0, snapshot, 1)
+			}
 			return
 		}
-		try {
-			if ISACTIVEEXCEL
-			{
-				foolGUI(1) 										;foolGUI() is a blank gui to get focus over excel [crazy bug- crazy fix]
-				tempC := ClipboardAll
-				tempCB := Clipboard
-				foolGUI(0)
-			}
-			else
-				tempC := ClipboardAll
-
-			if Substr(CN.Name, 1, 1) = "_" 		; protected channels
-			{
-				Critical, Off
-				BeepAt(protected_DoBeep, 2000, 200)
-				temp21 := TT_Console("{" CN.Name "}`n " TXT.TIP_confirmcopy, "Y N Insert")
-				Critical, On
-			}
-			if (temp21 = "Y") or (temp21 = "")
-			{
-				FileAppend, %tempC%, %CLIPS_dir%/%CURSAVE%.avc
-				CDS[CN.NG][CURSAVE] := ISACTIVEEXCEL ? tempCB : Clipboard
-				copied := 1
-			}
-			else {
-				LASTCLIP := "" , LASTFORMAT := "" , HASCOPYFAILED := 1 	; lastclip was not captured by cj
-				if (temp21 = "Insert") {
-					Tooltip, % TXT["_processing"]
-					SetTimer, addClipLater, -50
-				}
-			}
-		} catch {
-			if ISACTIVEEXCEL
-				foolGUI(0)
-		}
 	}
-	Tooltip,,,, 7
-	; check for empty file
-	FileRead, test, %CLIPS_dir%/%CURSAVE%.avc
-	if test=
-		return (HASCOPYFAILED := 1) * ablankvar 			;actually the return doesnt matter here
-
+	if !CJ_WriteSnapshot(CLIPS_dir "/" CURSAVE ".avc", snapshot)
+		return
+	CDS[CN.NG][CURSAVE] := capturedText
+	HASCOPYFAILED := 0
 	manageFIXATE(CURSAVE, CN.NG, CN.N)
-	return tempCB
+	return capturedText
 }
 
 manageFIXATE(clipAdded, channel, Dir_constant){
@@ -1394,48 +1346,28 @@ strtup:
 	return
 
 updt:
-	Tooltip, Checking for Updates ...... , , , 3
-	URLDownloadToFile, %UPDATE_FILE%, %A_WorkingDir%/cache/latestversion.txt
-	ToolTip, ,,, 3
-	FileRead, temp, %A_WorkingDir%/cache/latestversion.txt
-	lversion_changes := "`n`nCHANGES`n"
-	loop, parse, temp, `n, `r
-		if A_index=1
-			latestVersion := A_LoopField
-		else lversion_changes .= "`n" A_LoopField
-
-	if !IsLatestRelease(VERSION, latestversion, "b|a")
-	{
-		MsgBox, 48, Clipjump Update available, % "Your Version: `t`t" VERSION "`nCurrent version: `t`t" latestVersion . lversion_changes
-		IfMsgBox OK
-			BrowserRun(PRODUCT_PAGE)
-	}
-	else MsgBox, 64, %PROGNAME%, % TXT.ABT_noupdate
+	Run, % UPDATE_FILE
 	return
-
-;************************************** Helper FUNCTIONS ****************************************
 
 addToWinClip(lastEntry, extraTip){
 	API.blockMonitoring()
-	PasteModeToolTip( Valueof(extraTip), 1)
+	PasteModeToolTip(Valueof(extraTip), 1)
 	if CURSAVE
-		try FileRead, Clipboard, *c %A_WorkingDir%/%CLIPS_dir%/%lastentry%.avc
+		try_ClipboardfromFile(A_WorkingDir "/" CLIPS_dir "/" lastEntry ".avc")
 	Sleep, 1000
 	ToolTip
 	API.blockMonitoring(0)
 }
 
-/**
- * makes the shortcut responsible for copy and cut to clipjump
- * status - enabled/disabled
- * @return {void}
- */
 copyCutShortcuts(status = 1){
+	; Observe the original keys. Re-sending Ctrl-C/Ctrl-X can race Office's
+	; clipboard handling and can turn a copy into a stale paste.
+	hkZ("$^c", "NativeCopy", 0), hkZ("$^x", "NativeCut", 0)
 	if (ini_winClipjump == 1){
-		hkZ("$^c", "windows_copy", status) , hkZ("$^x", "windows_cut", status)
+		hkZ("~$^c", "windowsCopyObserved", status), hkZ("~$^x", "windowsCutObserved", status)
 		hkZ("#c", "NativeCopy", status) , hkZ("#x", "NativeCut", status)
 	} else {
-		hkZ("$^c", "NativeCopy", status) , hkZ("$^x", "NativeCut", status)
+		hkZ("~$^c", "nativeCopyObserved", status), hkZ("~$^x", "nativeCutObserved", status)
 	}
 }
 
@@ -1562,19 +1494,13 @@ editclip_cancel:
 }
 
 windows_copy:
-	API.blockMonitoring(1)
+	gosub windowsCopyObserved
 	Send ^{vk43}
-	sleep 100
-	makeClipboardAvailable(0)   ;wait till Clipboard is ready
-	API.blockMonitoring(0)
 	return
 
 windows_cut:
-	API.blockMonitoring(1)
+	gosub windowsCutObserved
 	Send ^{vk58}
-	sleep 100
-	makeClipboardAvailable(0)
-	API.blockMonitoring(0)
 	return
 
 ;Copies text to a var in the script without invoking Clipjump
@@ -1602,6 +1528,8 @@ disable_clipjump:
 	return
 
 routines_Exit() {
+	if IsObject(ClipboardCapture)
+		ClipboardCapture.Cancel()
 	Ini_write("Clipboard_history_window", "partial", history_partial, 0)
 	if IsObject(DB){
 		DB.CloseDb()
@@ -1647,6 +1575,9 @@ Receive_WM_COPYDATA(wParam, lParam){
 #Include %A_ScriptDir%\lib\API.ahk
 #Include %A_ScriptDir%\lib\translations.ahk
 #Include %A_ScriptDir%\lib\multi.ahk
+#Include %A_ScriptDir%\lib\clipboardIO.ahk
+#Include %A_ScriptDir%\lib\clipboardThumbnail.ahk
+#Include %A_ScriptDir%\lib\historyStore.ahk
 #Include %A_ScriptDir%\lib\aboutgui.ahk
 #include %A_ScriptDir%\lib\TT_Console.ahk
 #include %A_ScriptDir%\lib\Gdip_min.ahk

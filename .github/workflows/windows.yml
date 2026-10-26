@@ -1,0 +1,29 @@
+name: Windows compatibility
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  clipboard:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [x64, x86]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build verified portable package
+        shell: pwsh
+        run: ./scripts/Build.ps1 -Architecture ${{ matrix.architecture }}
+      - name: Test clipboard, history and startup
+        shell: pwsh
+        run: ./scripts/Test.ps1 -Architecture ${{ matrix.architecture }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Clipjump-Modern-${{ matrix.architecture }}
+          path: |
+            dist/*.zip
+            test-results/*
