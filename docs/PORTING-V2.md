@@ -24,6 +24,8 @@ Safe import accepts standard clipboard formats and detects both old SIZE_T width
 
 ## Native plugins
 
+The release includes `Clipjump.exe` and `ClipjumpCapture.exe`, compiled using the pinned v2 runtime. Both run without an installed AutoHotkey interpreter. Extract the complete ZIP: the matching SQLite DLL is an external dependency. The bundled source and interpreter remain available for development. Executable plugins are fixed at compile time. To load a local `User.ahk` without compiling, exit `Clipjump.exe` and launch `Clipjump.ahk` with the included matching interpreter, for example `runtime-v2\x64\AutoHotkey.exe Clipjump.ahk` from the extracted folder. Personal `User.ahk` files are excluded from distributed builds.
+
 Create `plugins-v2/User.ahk` using the supplied example. Assign `CJ_UserPluginLoader` to a callback which receives the registry:
 
 ```autohotkey

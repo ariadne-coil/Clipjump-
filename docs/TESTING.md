@@ -4,7 +4,7 @@ Run `scripts/Build.ps1` and `scripts/Test.ps1` with the same architecture. Run s
 
 ## Automated checks
 
-The native v2 regression suite currently makes **86 assertions on each of x64 and x86**, plus a separate smoke test of each assembled portable package.
+The native v2 regression suite currently makes **86 source assertions and 9 compiled-application assertions on each of x64 and x86**, plus separate script and executable startup smoke tests for each assembled portable package.
 
 - Unicode/emoji, quoted text, HTML, RTF, SVG, PDF and Adobe AICB-style binary format capture and replay.
 - Name-based registered format restoration independent of old numeric IDs; archive bounds and terminator validation.
@@ -17,6 +17,7 @@ The native v2 regression suite currently makes **86 assertions on each of x64 an
 - Private mode, ignored processes and all primary native dialogs.
 - Cross-process API with escaped multiline/backslash parameters and controlled unknown-operation errors.
 - Separate clipboard worker: success, read-only behavior, stale sequence invalidation, lock contention, blocked delayed rendering, bounded deadline and process-handle cleanup.
+- Compiled main app and capture worker run in an isolated folder containing no AutoHotkey interpreter or source scripts. Checks cover API discovery, capture-to-history, opaque binary preservation, unchanged live clipboard, worker handle cleanup and shutdown.
 
 The local platform is Windows 11 Home x64 build 26200. Both architectures pass locally. CI runs the same builds and suites on Windows runners. These checks are not application certification.
 

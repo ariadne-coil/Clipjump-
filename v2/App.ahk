@@ -27,7 +27,10 @@ class CJApp {
         this.Plugins := CJPlugins(this), this.UI := CJUI(this)
         if !this.Plugins.Items.Has(this.Config.Get("DefaultFormat"))
             this.Config.Set("DefaultFormat", "none", false)
-        this.Job := CJCaptureJob(this.Config.Data "\capture", A_AhkPath, root "\v2\CaptureWorker.ahk")
+        worker := A_IsCompiled ? root "\ClipjumpCapture.exe" : root "\v2\CaptureWorker.ahk"
+        if A_IsCompiled && !FileExist(worker)
+            throw Error("ClipjumpCapture.exe is missing. Extract the complete portable ZIP before running Clipjump.exe.")
+        this.Job := CJCaptureJob(this.Config.Data "\capture", A_AhkPath, worker)
         this.CaptureTimer := ObjBindMethod(this, "CapturePoll")
         this.PasteTimer := ObjBindMethod(this, "CheckPasteRelease")
         this.ClipboardCallback := ObjBindMethod(this, "ClipboardChanged")

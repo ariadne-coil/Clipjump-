@@ -1,4 +1,7 @@
 #Requires AutoHotkey v2.0.31+
+;@Ahk2Exe-SetName Clipjump Modern
+;@Ahk2Exe-SetDescription Clipjump Modern - native AutoHotkey v2 clipboard manager
+;@Ahk2Exe-SetVersion 13.0.0.1
 #SingleInstance Force
 #ClipboardTimeout 250
 #Include v2\SQLite.ahk

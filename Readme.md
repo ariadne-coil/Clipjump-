@@ -6,7 +6,7 @@ This is a compatibility beta. Microsoft 365 and Adobe Creative Cloud are targets
 
 ## Run
 
-Extract the x64 portable ZIP to a writable folder and double-click **Start-Clipjump.cmd**. The matching interpreter and SQLite DLL are included. No administrator access or separate AutoHotkey installation is required. Exit other Clipjump instances before starting.
+Download the x64 portable ZIP from [Releases](https://github.com/ariadne-coil/Clipjump-/releases), extract the whole ZIP to a writable folder, and double-click **Clipjump.exe**. Keep `ClipjumpCapture.exe` and the `runtime-v2` folder beside it. The matching SQLite DLL is included; no administrator access or AutoHotkey installation is required. **Start-Clipjump.cmd** also launches the executable. Exit other Clipjump instances before starting. The x86 ZIP is available as an alternative.
 
 Copy normally. Hold Ctrl and press V to enter paste mode, press V again to browse older clips, then release Ctrl to paste. The first paste uses the live application clipboard, preserving Excel’s current formulas and cut operation. Historical Office clips retain transferable rich formatting and displayed cell values.
 
@@ -22,7 +22,7 @@ The port starts with separate `cache-v2/` and `settings-v2.ini` files. Use **Imp
 
 New `.cjc` archives store registered format **names** and binary payloads, making them independent of session IDs and interpreter architecture. History and channel copies retain rich data. Text editing or a formatting command explicitly creates plain text.
 
-V1 third-party scripts need a native v2 port. The bundled formatting/maintenance tools have native v2 equivalents. See [migration, plugins, custom actions and API](docs/PORTING-V2.md). Old source is retained in the repository for reference and excluded from portable v2 packages.
+V1 third-party scripts need a native v2 port. The bundled formatting/maintenance tools have native v2 equivalents. Prebuilt executables embed the bundled plugins; loading a local `plugins-v2/User.ahk` requires the included source launch mode or a custom compile. See [migration, plugins, custom actions and API](docs/PORTING-V2.md). Old source is retained in the repository for reference and excluded from portable v2 packages.
 
 ## Build and test
 

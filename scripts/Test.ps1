@@ -10,8 +10,13 @@ New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
 function Invoke-AhkCheck([string]$Name, [string]$Script, [string[]]$ExtraArguments = @()) {
     $stdoutPath = Join-Path $logRoot "$Name-$Architecture.log"
     $stderrPath = Join-Path $logRoot "$Name-$Architecture.err"
+    $binary = $runtime
     $arguments = @('/ErrorStdOut=UTF-8', ('"' + $Script + '"')) + $ExtraArguments
-    $checkProcess = Start-Process -FilePath $runtime -ArgumentList $arguments -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+    if ([IO.Path]::GetExtension($Script) -eq '.exe') {
+        $binary = $Script
+        $arguments = @('/ErrorStdOut=UTF-8') + $ExtraArguments
+    }
+    $checkProcess = Start-Process -FilePath $binary -ArgumentList $arguments -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
     $null = $checkProcess.Handle
     if (!$checkProcess.WaitForExit(30000)) {
         Stop-Process -Id $checkProcess.Id
@@ -36,4 +41,8 @@ $package = Get-ChildItem -LiteralPath (Join-Path $projectRoot 'dist') -Directory
 if (!$package) { throw 'No portable package found. Build it first.' }
 $smokeOutput = Invoke-AhkCheck 'startup' (Join-Path $package.FullName 'Clipjump.ahk') @('--smoke-test')
 if ($smokeOutput -notmatch 'STARTUP_OK clipboard_unchanged=1') { throw 'Startup changed the live clipboard or failed.' }
+$exeSmokeOutput = Invoke-AhkCheck 'compiled-startup' (Join-Path $package.FullName 'Clipjump.exe') @('--smoke-test')
+if ($exeSmokeOutput -notmatch 'STARTUP_OK clipboard_unchanged=1') { throw 'Compiled startup changed the live clipboard or failed.' }
+$compiledOutput = Invoke-AhkCheck 'compiled' (Join-Path $projectRoot 'tests\v2\compiled-regression.ahk') @(('"' + $package.FullName + '"'))
+if ($compiledOutput -notmatch 'RESULT \d+ checks; 0 failures;') { throw 'Compiled application checks did not complete.' }
 Write-Output "All $Architecture checks passed."

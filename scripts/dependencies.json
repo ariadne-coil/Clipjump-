@@ -4,6 +4,11 @@
     "url": "https://github.com/AutoHotkey/AutoHotkey/releases/download/v2.0.31/AutoHotkey_2.0.31.zip",
     "sha256": "ca1a595aca4528755d8d4cd7fed23d497a37bd9a0b6892072612d68dee1bd00a"
   },
+  "compiler": {
+    "version": "1.1.37.02a2",
+    "url": "https://github.com/AutoHotkey/Ahk2Exe/releases/download/Ahk2Exe1.1.37.02a2/Ahk2Exe1.1.37.02a2.zip",
+    "sha256": "c29b8c3a5124850d79fc9e66e2ca79677c377d7f31631ad3022ba159c5d9e3be"
+  },
   "sqlite": {
     "version": "3.54.1",
     "x64": {

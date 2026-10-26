@@ -12,7 +12,7 @@ class Clipjump {
         hidden := A_DetectHiddenWindows, mode := A_TitleMatchMode
         try {
             DetectHiddenWindows(true), SetTitleMatchMode(2)
-            target := this.Target || WinExist("Clipjump.ahk ahk_class AutoHotkey")
+            target := this.Target || WinExist("Clipjump.exe ahk_class AutoHotkey") || WinExist("Clipjump.ahk ahk_class AutoHotkey")
             if !target
                 throw Error("Clipjump v2 is not running.")
             token := Format("{:08x}{:08x}", Random(0, 0x7FFFFFFF), Random(0, 0x7FFFFFFF))

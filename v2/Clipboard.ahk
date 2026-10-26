@@ -310,13 +310,15 @@ class CJCaptureJob {
                 return "waiting"
             this.Counter += 1
             this.Prefix := this.Directory "\" DllCall("GetCurrentProcessId") "-" this.Counter
-            command := '"' this.Runtime '" /ErrorStdOut "' this.Worker '" "' this.Prefix '" ' this.Sequence
+            compiled := RegExMatch(this.Worker, "i)\.exe$")
+            program := compiled ? this.Worker : this.Runtime
+            command := compiled ? '"' program '" "' this.Prefix '" ' this.Sequence : '"' program '" /ErrorStdOut "' this.Worker '" "' this.Prefix '" ' this.Sequence
             ; Keep a kernel handle, so cancellation cannot kill a reused PID.
             startup := Buffer(A_PtrSize = 8 ? 104 : 68, 0), info := Buffer(A_PtrSize = 8 ? 24 : 16, 0)
             NumPut("UInt", startup.Size, startup, 0)
             commandData := Buffer((StrLen(command) + 1) * 2)
             StrPut(command, commandData)
-            if !DllCall("CreateProcessW", "Str", this.Runtime, "Ptr", commandData, "Ptr", 0, "Ptr", 0, "Int", 0, "UInt", 0x08000000, "Ptr", 0, "Str", this.Directory, "Ptr", startup, "Ptr", info) {
+            if !DllCall("CreateProcessW", "Str", program, "Ptr", commandData, "Ptr", 0, "Ptr", 0, "Int", 0, "UInt", 0x08000000, "Ptr", 0, "Str", this.Directory, "Ptr", startup, "Ptr", info) {
                 this.Cancel()
                 return "error"
             }
