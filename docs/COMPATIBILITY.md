@@ -1,16 +1,16 @@
 # Compatibility and validation
 
-Target platform: Windows 11 x64. This beta preserves the original UI and scripting model while replacing clipboard capture and storage paths. It is not a complete rewrite or a guarantee against all app-specific errors.
+Target platform: Windows 11 x64. Version 13.0.0-beta.3 is a native AutoHotkey v2 port with rebuilt Windows dialogs and clipboard/storage layers, plus restored non-legacy settings and workflows. Compatibility is limited to the tested workflows below; it does not guarantee every app-specific workflow. See the [feature comparison](FEATURE-PARITY.md).
 
 | Area | Status |
 | --- | --- |
 | Windows 11 Home x64, build 26200 | Local test platform |
-| AutoHotkey 1.1.37.02 Unicode, x64 and x86 | Clipboard and SQLite regression suites |
-| SQLite 3.54.1, matching DLL architecture | Storage, legacy-schema migration and startup tests |
+| AutoHotkey 2.0.31 Unicode, x64 and x86 | 240 assertions per architecture plus script/executable package startup |
+| SQLite 3.54.1, matching DLL architecture | Storage, cross-architecture legacy import, API and startup tests |
 | Unicode/emoji, RTF and HTML | Capture, archive and restoration fixtures |
 | DIB, opaque binary, Adobe PDF/AICB-style and SVG payloads | Binary restoration fixtures; not Adobe application certification |
 | Busy clipboard, stalled renderer, stale capture | Failure and timeout fixtures |
-| Microsoft 365 Word/Excel | Direct results recorded in TESTING.md |
+| Microsoft 365 Word/Excel | v1 baseline in TESTING-V1.md; v2 results in TESTING.md |
 | PowerPoint, Outlook, OneNote and Access | Direct validation pending |
 | Photoshop, Illustrator, InDesign and Acrobat | Direct validation pending; not installed on the development machine |
 | Other Creative Cloud apps | Direct validation pending |
@@ -28,15 +28,15 @@ AutoHotkey's standard ClipboardAll routine is used for other apps, including Ado
 
 ## Timing and failures
 
-Capture starts after 150 milliseconds of stability. New notifications replace pending work. A worker may run for up to three seconds; a stale or failed result is discarded. The Office profile limits exported memory formats to 64 MiB per clip. Capture does not write to the live clipboard. A clipboard that never settles may not enter history. Native paste remains available while capture is pending or unsuccessful.
+Capture starts immediately in an isolated worker, without an intentional settle delay. New notifications replace pending work. A worker may run for up to three seconds; a stale or failed result is discarded. The Office profile limits exported memory formats to 64 MiB per clip. Capture does not write to the live clipboard. A clipboard that never settles may not enter history. With original formatting selected, native first paste remains available while capture is pending or unsuccessful. An explicitly selected text format waits for capture and cancels on failure or a new copy; it does not fall back to pasting rich content. Text with a bitmap representation, such as Excel cells, remains eligible for plain-text conversion.
 
 Windows requests can block in a source application's delayed renderer. The worker isolates the stall from Clipjump's UI; it cannot guarantee that the source app itself will not display an error. Requests exceeding the deadline are abandoned.
 
 ## Existing data
 
-Keep the previous installation backed up. This beta adds a nullable snapshot column to the existing history table. Existing text-only history remains readable; newly captured entries retain rich-format archives. History expiration and deletion remove associated snapshot files.
+The port uses separate `cache-v2/` and `settings-v2.ini` files. The tray importer reads original `cache/clips*` and `cache/data.db` without modifying the selected source. Both v1 pointer widths are detected. Safe import recovers standard text, DIB images and file lists. Optional registered-format import is only valid for archives from the same Windows session; numeric IDs in old files cannot reliably identify formats after reboot.
 
-Legacy `.avc` archives depend on the runtime's pointer width. Do not copy old x86 archives into an x64 installation or vice versa. Architecture migration and cross-architecture import validation are not included in this beta. Portable packages contain no user settings or clipboard data.
+New `.cjc` archives store registered format names and binary payloads, so they can be shared across x86/x64 runtimes and Windows sessions. Lost formatting in old text-only history cannot be recovered. V1 third-party plugins and custom script strings require conversion to native v2 callbacks or named actions. Portable packages contain no user settings or clipboard data.
 
 ## Upstream reports guiding this work
 
@@ -48,4 +48,4 @@ Legacy `.avc` archives depend on the runtime's pointer width. Do not copy old x8
 
 These reports motivate the changes. They are not marked resolved upstream: their original environments and all modern equivalents have not been reproduced.
 
-Primary references: [Windows clipboard operations](https://learn.microsoft.com/en-us/windows/win32/dataxchg/using-the-clipboard), [AutoHotkey clipboard implementation](https://github.com/AutoHotkey/AutoHotkey/blob/v1.1.37.02/source/clipboard.cpp), [SQLite downloads](https://www.sqlite.org/download.html).
+Primary references: [Windows clipboard operations](https://learn.microsoft.com/en-us/windows/win32/dataxchg/using-the-clipboard), [AutoHotkey clipboard implementation](https://github.com/AutoHotkey/AutoHotkey/blob/v2.0.31/source/clipboard.cpp), [SQLite downloads](https://www.sqlite.org/download.html).

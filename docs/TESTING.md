@@ -1,34 +1,45 @@
-# Testing
+# AutoHotkey v2 validation
 
-Run `scripts/Build.ps1` and `scripts/Test.ps1` with the same architecture. Tests temporarily replace the system clipboard with synthetic fixtures and restore its previous value on exit. Run sequentially on an interactive Windows desktop; concurrent clipboard tests would interfere.
+Run `scripts/Build.ps1` and `scripts/Test.ps1` with the same architecture. Run sequentially on an interactive Windows desktop with other clipboard managers closed. The tests temporarily replace the clipboard with synthetic data, then restore the original value. They create an isolated temporary data/config directory and remove only that generated directory.
 
-## Automated coverage
+## Automated checks
 
-- Capture/restoration: Unicode, emoji, RTF, HTML with fragment offsets, DIB, SVG, opaque bytes including embedded zeroes, PDF/AICB-style formats and Office's safe profile.
-- Atomic storage: binary comparison, formatting-only changes, Unicode paths and preservation of an existing archive when a replacement fails.
-- Lifecycle: worker completion, sequence invalidation, locked clipboard access and a deliberately blocked delayed renderer with a bounded deadline.
-- History: migration from the original schema, repeated migration, exact text with quotes/newlines/SQL-like content, UTF-8 sizes, binary archives and literal searches.
-- Missing thumbnails cannot produce invalid SQL or broken history rows.
-- Full application: startup with matching SQLite DLL and confirmation that the clipboard sequence is unchanged.
+The native v2 suites make **87 engine assertions, 143 feature assertions and 10 compiled-application assertions on each of x64 and x86**, plus separate script and executable startup smoke tests for each assembled portable package. That is 480 assertions and four package startup checks across both architectures.
 
-CI runs both interpreter architectures on Windows runners. These checks do not substitute for app-level testing.
+- Unicode/emoji, quoted text, HTML, RTF, SVG, PDF and Adobe AICB-style binary format capture and replay.
+- Name-based registered format restoration independent of old numeric IDs; archive bounds and terminator validation.
+- Office safe-format allowlist and exclusions of BIFF, spreadsheet XML and live OLE object formats.
+- V1 32/64-bit archive import, safe default versus same-session registered formats, idempotent directory import, source preservation and path traversal rejection.
+- Bound SQLite values, binary deduplication, channel copy/move, tags, literal search, pin-preserving compaction, archive replacement and lifetime cleanup.
+- DIB encoding, DIBV5 decoding, bitmap fallback and thumbnails.
+- Native format plugins, controlled regex errors, custom callback registration and non-executing HTML text parsing.
+- Live first paste leaves the application's clipboard unchanged, sends one paste, cycles history, restores rich data on cancel, and cancels when an external copy supersedes it.
+- Private mode, ignored processes and all primary native dialogs.
+- Cross-process API with escaped multiline/backslash parameters and controlled unknown-operation errors.
+- Separate clipboard worker: success, read-only behavior, stale sequence invalidation, lock contention, blocked delayed rendering, bounded deadline and process-handle cleanup.
+- Compiled main app and capture worker run in an isolated folder containing no AutoHotkey interpreter or source scripts. Checks cover API discovery, capture-to-history, opaque binary preservation, unchanged live clipboard, worker handle cleanup and shutdown.
+- Exact fixed-slot ordering, pinned-order/database migration, clip/channel swaps, combined views, unlimited channels and cleanup thresholds.
+- History-only and strict incognito, image-history exclusion, session cleanup, manual-copy owner/expiry checks, Win copy intent, One Time Stop and PitSwap.
+- Remembered/default formats, exact plain text with trailing newlines, rich-to-original restoration, mixed Office text/bitmap clips, image-only preservation, History formatting and multipaste/cancel behavior.
+- Fast formatted paste waits for the worker; repeated presses queue relative jumps; a new copy cancels the pending paste and still enters history.
+- Native search mode, preview Find, full image sizing, New Clip, isolated Hold buffers, external text/image save/reload, Explorer provider integration and multiple file paths.
+- Startup shortcut creation/removal in a temporary directory, JPEG quality encoders, complete label catalogs for seven languages and strict-incognito settings migration.
+- Deterministic update-worker success/timeout fixtures verify immediate return, callback reporting, process-handle cleanup and temporary-file removal. CI does not depend on a live update service.
+- Copy capture launches its worker immediately and shows no default confirmation in the compiled app. Earlier v2 settings migrate to silent capture, retain that choice across restarts and still allow an explicit later opt-in.
+- Paste preview uses the native tooltip, sizes to short contents, preserves multiline text and leaves clipboard contents and window focus unchanged. Selected formats and destructive actions remain visible in the caption; disabling previews removes the tooltip. Hook-free engine runs ignore the desktop's Shift key for delete-after-paste.
 
-## Manual app acceptance procedure
+The local platform is Windows 11 Home x64 build 26200. Both architectures pass locally. CI runs the same builds and suites on Windows runners. These checks are not application certification.
 
-Use disposable documents; record app version and Windows build. Keep default formatting selected.
+Beta.2's English and German settings windows were inspected on the local desktop, including the plain-text selector, remembered-format checkbox and shortcut layout. Saving the isolated configuration persisted both formatting and language choices. A separate live update-worker probe successfully read the fork's published releases without blocking the calling app.
 
-1. Copy text with bold, italic, a hyperlink, a table and non-ASCII characters. Paste the latest clip, an older channel clip and a History clip. Verify formatting after restarting Clipjump.
-2. Repeat with identical text but different formatting. Both versions should remain distinct with duplicate suppression enabled.
-3. In Excel, test rectangular cells with formulas, values, dates, currency, merged cells and different number formats. Repeat native cut/paste; capture must not send Delete or change the source selection.
-4. In Word/Outlook/PowerPoint, test text, embedded images, tables and mixed content. Test plain-text paste as an explicit separate action.
-5. In Illustrator/InDesign/Photoshop, test text, vectors, transparent raster selections and cross-app copy. Record formats surviving historical replay. Live OLE/linked objects are outside the supported archive contract.
-6. In Acrobat, test ordinary Copy, Copy With Formatting and different PDFs, with and without switching windows.
-7. Repeat fast consecutive copies and a large supported image. Native clipboard should remain usable; unavailable snapshots must fail without pasting another item.
+## Direct application validation
 
-## Direct application results
+Microsoft 365 x64 version 16.0.20430.20182 is installed. The earlier v1 beta's Word/Excel acceptance results and Excel-warning reproduction are retained in [TESTING-V1.md](TESTING-V1.md). V2-specific direct results are recorded below as checks are completed.
 
-Development machine: Windows 11 Home x64 build 26200; Microsoft 365 x64 version 16.0.20430.20182. Results are recorded after each check. Adobe Creative Cloud applications are not installed here.
+Adobe Creative Cloud is not installed. PDF/AICB/SVG fixtures verify format-byte preservation, not Photoshop, Illustrator, InDesign or Acrobat behavior. PowerPoint, Outlook, OneNote, Access, Office web apps and ARM64 still need direct acceptance testing.
 
-- Word: copied a bold sample, pasted through Ctrl+V into a paragraph with bold disabled, then selected an older sample in Clipjump History and used instant paste. Both restored the bold sample with no observed error dialog. This is a basic rich-text check, not coverage of embedded OLE objects, all Word formats or every Office app.
-- Excel: copied bold currency cells containing a value of 100 and formula `=A1*2` from A1:B1 to D1:E1. Formatting survived and E1 retained the adjusted formula `=D1*2`. Cut D1:E1 to G1:H1; source cells remained present after Ctrl+X and were cleared once on paste. No error dialog was observed. Copy/cut monitoring was changed to passive key observation after direct testing exposed a failure in the original re-sent keystrokes.
-- Excel History: replaying an initial ClipboardAll snapshot reproduced the current Excel cross-instance formula warning. The final Office profile resolves hidden clipboard owners by PID and omits BIFF/spreadsheet XML. Repeating History instant paste into A2:B2 preserved bold currency values 100 and 200 with no warning dialog. Historical formulas are intentionally flattened to their displayed values.
+Explorer integration has automated tests for injected shell selections, folder paths, multiple paths, standard file-list fallback and file data. Direct acceptance across Windows 11 multi-tab Explorer and third-party file managers remains pending. Translation catalogs are complete for the bundled v2 labels; native-speaker review remains welcome.
+
+## Acceptance procedure
+
+Use disposable documents and record app/Windows versions. Copy formatted text, hyperlinks, tables, Unicode and images; replay both the latest copy and an older saved clip after restarting Clipjump. In Excel, check formulas on live first paste, displayed values/formatting from History, and cut/paste without premature source deletion. In Adobe apps, test vectors, transparent raster selections, formatted text and cross-app paste. Exercise rapid copies, a large supported image and a busy clipboard. Failed snapshots must not paste another item.
