@@ -73,7 +73,7 @@ function Convert-ToExecutable([string]$Source, [string]$Destination) {
 }
 Convert-ToExecutable (Join-Path $packageRoot 'Clipjump.ahk') (Join-Path $packageRoot 'Clipjump.exe')
 Convert-ToExecutable (Join-Path $packageRoot 'v2\CaptureWorker.ahk') (Join-Path $packageRoot 'ClipjumpCapture.exe')
-$archiveOutput = Join-Path $projectRoot "dist\Clipjump-Modern-13.0.0-beta.2-$Architecture.zip"
+$archiveOutput = Join-Path $projectRoot "dist\Clipjump-Modern-13.0.0-beta.3-$Architecture.zip"
 Compress-Archive -Path (Join-Path $packageRoot '*') -DestinationPath $archiveOutput -Force
 Get-FileHash -LiteralPath $archiveOutput -Algorithm SHA256 | Format-List
 Write-Output "Package directory: $packageRoot"

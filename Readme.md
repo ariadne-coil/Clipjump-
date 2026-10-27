@@ -1,6 +1,6 @@
 # Clipjump Modern — AutoHotkey v2
 
-A native AutoHotkey v2 continuation of [Avi Aryan’s Clipjump](https://github.com/aviaryan/Clipjump), targeting Windows 11. Version **13.0.0-beta.2** ports the clipboard engine, history, channels, paste mode, settings, bundled formats, customization and public API to **AutoHotkey 2.0.31**. Apache 2.0; original credits remain in NOTICE.txt.
+A native AutoHotkey v2 continuation of [Avi Aryan’s Clipjump](https://github.com/aviaryan/Clipjump), targeting Windows 11. Version **13.0.0-beta.3** ports the clipboard engine, history, channels, paste mode, settings, bundled formats, customization and public API to **AutoHotkey 2.0.31**. Apache 2.0; original credits remain in NOTICE.txt.
 
 This is a compatibility beta. Microsoft 365 and Adobe Creative Cloud are targets; see the [tested scope and limits](docs/COMPATIBILITY.md). Adobe application testing is still pending. The v1 beta remains on `master` while this port is reviewed on `port/ahk-v2`.
 
@@ -10,7 +10,7 @@ Download the x64 portable ZIP from [Releases](https://github.com/ariadne-coil/Cl
 
 Copy normally. Hold Ctrl and press V to enter paste mode, press V again to browse older clips, then release Ctrl to paste. With **Keep original formatting** selected, the first paste uses the live application clipboard, preserving Excel’s current formulas and cut operation. Historical Office clips retain transferable rich formatting and displayed cell values.
 
-Copying is silent by default, including when upgrading earlier v2 settings. Capture starts immediately in the background without a settle delay. Paste mode uses the original compact native tooltip: the clip number and contents, with line breaks preserved. A chosen format or alternate action adds a short caption; **F1** opens the shortcut help. Optional copy feedback is available in **Settings → Capture**.
+**New in Beta 3:** copying is silent by default, including when upgrading earlier v2 settings. Capture starts immediately in the background without a settle delay. Paste mode uses the original compact native tooltip: the clip number and contents, with line breaks preserved. A chosen format or alternate action adds a short caption; **F1** opens the shortcut help. Optional copy feedback is available in **Settings → Capture**.
 
 - **Ctrl+Shift+H:** searchable history and combined channel view, previews with Find, instant paste, new clips, external editing, tags, fixed positions, swaps, moving/copying and archive import/export.
 - **Ctrl+Shift+O:** channel organizer, protected channels and history exclusion.

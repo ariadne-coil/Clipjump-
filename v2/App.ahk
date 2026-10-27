@@ -1,6 +1,6 @@
 #Requires AutoHotkey v2.0.31+
 class CJAppBase {
-    static Version := "13.0.0-beta.2"
+    static Version := "13.0.0-beta.3"
     static ProjectPage := "https://github.com/ariadne-coil/Clipjump-"
 
     __New(root, dataDirectory := "", options := false) {

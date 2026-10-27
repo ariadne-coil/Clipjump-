@@ -1,4 +1,4 @@
-# Restored features in 13.0.0-beta.2
+# Features in 13.0.0-beta.3
 
 This comparison covers the non-legacy gaps identified between original Clipjump 12.5 and the first native v2 beta. Windows controls and native v2 implementations replace the old UI components. It is a feature comparison, not certification of every Microsoft 365 or Adobe workflow; see [COMPATIBILITY.md](COMPATIBILITY.md).
 

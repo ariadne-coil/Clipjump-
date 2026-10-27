@@ -3,7 +3,7 @@
 #Include ..\..\publicAPI.ahk
 try {
     cj := Clipjump(Integer(A_Args[1]))
-    if cj.getVar("version") != "13.0.0-beta.2"
+    if cj.getVar("version") != "13.0.0-beta.3"
         throw Error("Version response mismatch")
     if cj.getClipAt(0, 1) != "API`r`nline\tail"
         throw Error("Multiline API response mismatch")

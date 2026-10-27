@@ -1,11 +1,11 @@
 # Compatibility and validation
 
-Target platform: Windows 11 x64. Version 13.0.0-beta.2 is a native AutoHotkey v2 port with rebuilt Windows dialogs and clipboard/storage layers, plus restored non-legacy settings and workflows. Compatibility is limited to the tested workflows below; it does not guarantee every app-specific workflow. See the [feature comparison](FEATURE-PARITY.md).
+Target platform: Windows 11 x64. Version 13.0.0-beta.3 is a native AutoHotkey v2 port with rebuilt Windows dialogs and clipboard/storage layers, plus restored non-legacy settings and workflows. Compatibility is limited to the tested workflows below; it does not guarantee every app-specific workflow. See the [feature comparison](FEATURE-PARITY.md).
 
 | Area | Status |
 | --- | --- |
 | Windows 11 Home x64, build 26200 | Local test platform |
-| AutoHotkey 2.0.31 Unicode, x64 and x86 | 227 assertions per architecture plus script/executable package startup |
+| AutoHotkey 2.0.31 Unicode, x64 and x86 | 240 assertions per architecture plus script/executable package startup |
 | SQLite 3.54.1, matching DLL architecture | Storage, cross-architecture legacy import, API and startup tests |
 | Unicode/emoji, RTF and HTML | Capture, archive and restoration fixtures |
 | DIB, opaque binary, Adobe PDF/AICB-style and SVG payloads | Binary restoration fixtures; not Adobe application certification |
@@ -28,7 +28,7 @@ AutoHotkey's standard ClipboardAll routine is used for other apps, including Ado
 
 ## Timing and failures
 
-Capture starts after 150 milliseconds of stability. New notifications replace pending work. A worker may run for up to three seconds; a stale or failed result is discarded. The Office profile limits exported memory formats to 64 MiB per clip. Capture does not write to the live clipboard. A clipboard that never settles may not enter history. With original formatting selected, native first paste remains available while capture is pending or unsuccessful. An explicitly selected text format waits for capture and cancels on failure or a new copy; it does not fall back to pasting rich content. Text with a bitmap representation, such as Excel cells, remains eligible for plain-text conversion.
+Capture starts immediately in an isolated worker, without an intentional settle delay. New notifications replace pending work. A worker may run for up to three seconds; a stale or failed result is discarded. The Office profile limits exported memory formats to 64 MiB per clip. Capture does not write to the live clipboard. A clipboard that never settles may not enter history. With original formatting selected, native first paste remains available while capture is pending or unsuccessful. An explicitly selected text format waits for capture and cancels on failure or a new copy; it does not fall back to pasting rich content. Text with a bitmap representation, such as Excel cells, remains eligible for plain-text conversion.
 
 Windows requests can block in a source application's delayed renderer. The worker isolates the stall from Clipjump's UI; it cannot guarantee that the source app itself will not display an error. Requests exceeding the deadline are abandoned.
 

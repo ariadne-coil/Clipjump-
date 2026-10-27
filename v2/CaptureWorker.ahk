@@ -1,7 +1,7 @@
 #Requires AutoHotkey v2.0.31+
 ;@Ahk2Exe-SetName Clipjump Capture Worker
 ;@Ahk2Exe-SetDescription Isolated clipboard capture worker for Clipjump Modern
-;@Ahk2Exe-SetVersion 13.0.0.2
+;@Ahk2Exe-SetVersion 13.0.0.3
 #SingleInstance Off
 #NoTrayIcon
 #ClipboardTimeout 250
