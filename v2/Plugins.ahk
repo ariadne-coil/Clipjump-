@@ -4,7 +4,7 @@ class CJPlugins {
     __New(app) {
         this.App := app, this.Items := Map()
         this.Register("none", "Keep original formatting", (text, parameter := "") => text)
-        this.Register("plain", "Trim formatting", (text, parameter := "") => RTrim(text, "`r`n"))
+        this.Register("plain", "Plain text", (text, parameter := "") => text)
         this.Register("trim", "Trim white space", (text, parameter := "") => Trim(text, " `t`r`n"))
         this.Register("upper", "UPPERCASE", (text, parameter := "") => StrUpper(text))
         this.Register("lower", "lowercase", (text, parameter := "") => StrLower(text))

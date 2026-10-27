@@ -44,7 +44,7 @@ New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
 foreach ($source in @('Clipjump.ahk', 'publicAPI.ahk', 'Readme.md', 'NOTICE.txt', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'Start-Clipjump.cmd')) {
     Copy-Item -LiteralPath (Join-Path $projectRoot $source) -Destination $packageRoot
 }
-foreach ($directory in @('v2', 'icons', 'languages', 'docs')) {
+foreach ($directory in @('v2', 'icons', 'languages', 'languages-v2', 'docs')) {
     Copy-Item -LiteralPath (Join-Path $projectRoot $directory) -Destination $packageRoot -Recurse
 }
 $packagePlugins = Join-Path $packageRoot 'plugins-v2'
@@ -73,7 +73,7 @@ function Convert-ToExecutable([string]$Source, [string]$Destination) {
 }
 Convert-ToExecutable (Join-Path $packageRoot 'Clipjump.ahk') (Join-Path $packageRoot 'Clipjump.exe')
 Convert-ToExecutable (Join-Path $packageRoot 'v2\CaptureWorker.ahk') (Join-Path $packageRoot 'ClipjumpCapture.exe')
-$archiveOutput = Join-Path $projectRoot "dist\Clipjump-Modern-13.0.0-beta.1-$Architecture.zip"
+$archiveOutput = Join-Path $projectRoot "dist\Clipjump-Modern-13.0.0-beta.2-$Architecture.zip"
 Compress-Archive -Path (Join-Path $packageRoot '*') -DestinationPath $archiveOutput -Force
 Get-FileHash -LiteralPath $archiveOutput -Algorithm SHA256 | Format-List
 Write-Output "Package directory: $packageRoot"

@@ -4,9 +4,9 @@
 
 The entry point and application under `v2/` run only on AutoHotkey 2.0.31 or later. They use native v2 Gui/ListView, callback hotkeys, ClipboardAll buffers, bound SQLite parameters, and a separate capture worker. No v1 interpreter or converter is used at runtime. `lib/` and `plugins/` are retained as reference source. The v1 entry point and SDK remain on `master` and in Git history.
 
-Implemented: keyboard paste mode; live first paste; next/previous and numeric clip selection; multi-paste and shift-pop; channel switching; pins, tags and search; rich history and previews; hold/edit; ignored source processes/classes; monitoring/private mode; settings; custom hotkeys and hotstrings; format plugins; image-file import; file-path maintenance; translation-file inspection; v1 import and `.cjc` import/export; external API.
+Implemented: keyboard and search-paste modes; live first paste; configurable paste keys and relative jumps; multi-paste and shift-pop; remembered or default formatting and exact plain text; channel switching/PitSwap; exact fixed positions, tags and partial search; combined channel view and clip/channel swaps; rich history, full image previews and Find; new clips, fresh-selection Hold and external editing; ignored source processes/classes; one-time/manual capture and both incognito policies; Explorer paths/contents; session and storage settings; seven-language UI; startup, priority, memory and overlay controls; bounded update checks; custom hotkeys/hotstrings; native plugins; image-file import; file-path maintenance; translation inspection; existing v1 import and `.cjc` import/export; external API. See [FEATURE-PARITY.md](FEATURE-PARITY.md) for behavior and exclusions.
 
-The UI has been rebuilt with native Windows controls. HTML previews display text and format metadata without executing pasted markup. Existing language files are available to the translation lookup, but the new interface currently retains English labels for new controls. Old custom script evaluation, internal global-variable access, arbitrary `runFunction` strings, v1 third-party plugins and old IE/GDI UI extensions are not compatible. Legacy custom INI files are not executed automatically.
+The UI has been rebuilt with native Windows controls. HTML previews display text and format metadata without executing pasted markup. Original language resources are supplemented by `languages-v2/` catalogs for English, German, Dutch, Brazilian Portuguese, Russian, Swedish and Simplified Chinese. Only interface labels are translated; clipboard contents and channel names are preserved. Native OS error messages and third-party plugin names can remain in their source language. Old custom script evaluation, internal global-variable access, arbitrary `runFunction` strings, v1 third-party plugins and old IE/GDI UI extensions are not compatible. Legacy custom INI files are not executed automatically.
 
 ## Clipboard and storage contract
 
@@ -14,7 +14,11 @@ New archives have a CJ2B header, version, entry count, and records containing a 
 
 Office processes use a transferable-format profile: text, HTML, RTF, CSV, DIB/DIBV5, PNG and SVG. Historical Excel replay intentionally flattens formulas to displayed values to avoid cross-instance BIFF/XML warnings. Immediate first paste retains the original application clipboard. Live OLE links and process-owned objects are not portable archives.
 
-Capture is read-only in a child process. It is debounced for 150 ms, canceled on sequence changes, and terminated after a three-second worker deadline. The parent retains a process handle to avoid terminating a reused PID. Copy/cut shortcuts pass through untouched. Startup does not replay archives or alter the clipboard.
+Capture is read-only in a child process. It is debounced for 150 ms, canceled on sequence changes, and terminated after a three-second worker deadline. The parent retains a process handle to avoid terminating a reused PID. Copy/cut shortcuts pass through untouched in the default configuration. Optional Win+C/X sends a native copy/cut and arms capture; ordinary Ctrl+C/X stays on the system clipboard in that mode. Startup does not replay archives or alter the clipboard. Explicit formatted paste waits for capture when necessary; capture failure never falls through to an unexpected rich paste.
+
+Database schema 3 adds fixed-slot metadata in a transaction. Existing beta.1 pins retain their prior visible order. The default channel's limit can be zero (unlimited); other channels are unlimited unless the all-channel limit option is enabled. KeepSession controls only the default channel, and does not delete History or other channels. Incognito stops new History entries; its separate strict option also stops capture. Existing strict beta.1 incognito is preserved on upgrade.
+
+The main app keeps file watching and UI work outside the clipboard worker. External editor sessions remain active until **Finish**, since modern editors can hand documents to another process. Update downloads use the same utility executable with an eight-second deadline. Neither worker is terminated by PID alone.
 
 ## Legacy import
 
@@ -42,7 +46,9 @@ Format callbacks accept `(text, parameter)` and return text. Command callbacks c
 
 `ClipjumpCustom-v2.ini` uses `[Hotkeys]` entries such as `^!h=history` and an optional `[AutoRun]` list of named actions. `HotPaste-v2.ini` uses `[Text]` entries such as `signature=Regards` and `[Clips]` entries such as `address=0,1` (channel ID/name, one-based clip index). Use the tray plugin tools to edit these files and reload their configuration.
 
-Actions include `history`, `channel-clips`, `channels`, `settings`, `plugins`, `formats`, `hold`, `ignore`, `ini`, `custom`, `hotpaste`, `translations`, `import-v1`, `import`, `plain`, `sync`, `monitor:on`, `incognito:on`, `channel:2`, `plugin:upper`, `format:plain`, `text:Hello`, `paste:0,1`, `tip:Hello`, `send:^c`, `sleep:100`, `delete-files`, `history-paths`, `copy-file-data`, `copy-file-path`, `copy-folder-path` and `actions`. Sleep is capped at 10 seconds. Use native callbacks for richer extensions.
+Actions include `history`, `channel-clips`, `channels`, `settings`, `plugins`, `formats`, `hold`, `new-clip`, `external-edit`, `pitswap`, `one-time`, `system-copy`, `system-cut`, `updates`, `paste-help`, `ignore`, `ini`, `custom`, `hotpaste`, `translations`, `import-v1`, `import`, `plain`, `sync`, `monitor:on`, `incognito:on`, `channel:2`, `plugin:upper`, `format:plain`, `text:Hello`, `paste:0,1`, `tip:Hello`, `send:^c`, `sleep:100`, `delete-files`, `history-paths`, `copy-file-data`, `copy-file-path`, `copy-folder-path` and `actions`. Sleep is capped at 10 seconds. `format:plain` sets the default and clears the remembered choice. Use native callbacks for richer extensions.
+
+For isolated development, `--config-dir <folder>` selects settings/customization files and `--data-dir <folder>` selects the database/archive directory. Normal portable launch uses the application folder. The language and worker resources remain relative to the application folder.
 
 ## External API
 

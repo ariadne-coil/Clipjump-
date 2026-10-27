@@ -1,12 +1,14 @@
 #Requires AutoHotkey v2.0.31+
-class CJApp {
-    static Version := "13.0.0-beta.1"
+class CJAppBase {
+    static Version := "13.0.0-beta.2"
     static ProjectPage := "https://github.com/ariadne-coil/Clipjump-"
 
     __New(root, dataDirectory := "", options := false) {
         this.Root := root, this.Closed := false
         configRoot := IsObject(options) && options.HasOwnProp("ConfigRoot") ? options.ConfigRoot : root
         this.Config := CJConfig(configRoot, dataDirectory)
+        this.Config.LanguageRoot := root
+        this.Config.LoadLanguage()
         architecture := A_PtrSize = 8 ? "x64" : "x86"
         this.Library := root "\runtime-v2\" architecture "\sqlite3.dll"
         if !FileExist(this.Library)
@@ -357,7 +359,8 @@ class CJApp {
             try Hotkey(key, "Off")
         this.TemporaryKeys := []
         if this.HooksEnabled && !this.Closed
-            this.ObserveCopyKeys()
+            for key, callback in this.Hotkeys
+                Hotkey(key, callback, "On")
     }
     SelectHotkey(index, *) => this.Guard(ObjBindMethod(this, "Select", index))
     PasteAction(action, *) => this.Guard(ObjBindMethod(this, "DoPasteAction", action))

@@ -1,5 +1,5 @@
 #Requires AutoHotkey v2.0.31+
-class CJUI {
+class CJUIBase {
     __New(app) {
         this.App := app, this.Windows := Map(), this.History := false, this.Overlay := false
         this.LastTarget := 0
@@ -30,19 +30,22 @@ class CJUI {
         if !this.History {
             window := this.New("history", "Clipjump Modern — " this.App.Config.T("HST__name", "Clipboard History"), "+Resize +MinSize820x480")
             window.AddText("x12 y15 w52", "Search")
-            search := window.AddEdit("x70 y11 w550")
+            search := window.AddEdit("x70 y11 w440")
+            partial := window.AddCheckbox("x520 y15 w120", "Partial")
+            partial.Value := this.App.Config.Get("PartialSearch")
             scope := window.AddDropDownList("x650 y11 w338")
-            commands := [["Paste", "paste"], ["Copy", "copy"], ["Preview", "preview"], ["Hold / edit", "edit"], ["Formats", "formats"], ["Export", "export"], ["Import", "import"]]
+            commands := [["Paste", "paste"], ["Copy", "copy"], ["Preview", "preview"], ["Hold / edit", "edit"], ["Formats", "formats"], ["Export", "export"], ["Import", "import"], ["New clip", "new"], ["External editor", "external-edit"]]
             for index, pair in commands
                 this.Button(window, "x" (12 + (index - 1) * 94) " y44 w88 h28", pair[1], ObjBindMethod(this, "HistoryAction", pair[2]))
-            commands := [["Move to…", "move"], ["Copy to…", "copy-to"], ["Pin", "pin"], ["Tag", "tag"], ["Delete", "delete"], ["Clear…", "clear"], ["Settings", "settings"]]
+            commands := [["Move to…", "move"], ["Copy to…", "copy-to"], ["Pin", "pin"], ["Tag", "tag"], ["Delete", "delete"], ["Clear…", "clear"], ["Settings", "settings"], ["Swap clips", "swap"]]
             for index, pair in commands
                 this.Button(window, "x" (12 + (index - 1) * 94) " y78 w88 h28", pair[1], ObjBindMethod(this, "HistoryAction", pair[2]))
             list := window.AddListView("x12 y116 w620 h440 +LV0x10000", ["Clip", "Type", "Date", "Tag", "Size"])
             preview := window.AddEdit("x646 y116 w342 h225 +ReadOnly +Multi -Wrap")
             picture := window.AddPicture("x646 y350 w342 h200 Hidden")
             status := window.AddStatusBar()
-            this.History := {Gui: window, Search: search, Scope: scope, List: list, Preview: preview, Picture: picture, Status: status, Rows: [], Scopes: []}
+            this.History := {Gui: window, Search: search, Partial: partial, Scope: scope, List: list, Preview: preview, Picture: picture, Status: status, Rows: [], Scopes: [], SearchMode: false}
+            partial.OnEvent("Click", (*) => (this.App.Config.Set("PartialSearch", partial.Value), this.RefreshHistory()))
             search.OnEvent("Change", (*) => this.RefreshHistory())
             scope.OnEvent("Change", (*) => this.RefreshHistory())
             list.OnEvent("DoubleClick", (*) => this.App.Guard(ObjBindMethod(this, "HistoryAction", "paste")))
@@ -119,21 +122,21 @@ class CJUI {
             return
         state.Picture.Visible := false
         if !ids.Length {
-            state.Preview.Value := "Select a clip to preview it."
+            state.Preview.Value := this.App.Config.L("Select a clip to preview it.")
             return
         }
         try {
             record := this.App.Store.Get(ids[1]), snapshot := this.App.Store.Snapshot(record), formats := ""
             for entry in snapshot.Entries
                 formats .= (formats = "" ? "" : ", ") (entry.Name != "" ? entry.Name : CJUI.StandardName(entry.Id))
-            state.Preview.Value := record.text "`r`n`r`nStored formats: " formats
+            state.Preview.Value := record.text "`r`n`r`n" this.App.Config.L("Stored formats:") " " formats
             image := this.App.Store.Thumbnail(record)
             if FileExist(image) {
                 state.Picture.Value := image
                 state.Picture.Visible := true
             }
         } catch as err
-            state.Preview.Value := "This archive cannot be read. " err.Message
+            state.Preview.Value := this.App.Config.L("This archive cannot be read.") " " err.Message
     }
 
     static StandardName(id) {
@@ -265,6 +268,7 @@ class CJUI {
         protect := window.AddCheckbox("w300", "Confirm before capturing into this channel")
         noHistory := window.AddCheckbox("w300", "Exclude new clips from global history")
         state := {Gui: window, List: list, Name: name, Protected: protect, NoHistory: noHistory, Rows: rows}
+        this.ChannelState := state
         list.OnEvent("ItemSelect", ObjBindMethod(this, "ChannelSelection", state))
         for index, action in ["Use", "Add", "Save", "Delete"]
             this.Button(window, (index = 1 ? "xm y+12" : "x+10 yp") " w100 h28", action, ObjBindMethod(this, "ChannelResult", state, action))
@@ -322,7 +326,7 @@ class CJUI {
         window.AddText("xm w220", "Default paste format")
         formats := this.App.Plugins.Formats(), names := [], chosen := 1
         for index, format in formats {
-            names.Push(format.Name)
+            names.Push(this.App.Config.L(format.Name))
             if format.Id = this.App.Config.Get("DefaultFormat")
                 chosen := index
         }
@@ -384,7 +388,7 @@ class CJUI {
         list := window.AddListView("w690 h360", ["Plugin", "Type", "Identifier"]), items := []
         for id, plugin in this.App.Plugins.Items {
             items.Push(plugin)
-            list.Add("", plugin.Name, plugin.Kind, id)
+            list.Add("", this.App.Config.L(plugin.Name), this.App.Config.L(plugin.Kind), id)
         }
         this.Button(window, "w100 Default", "Run", ObjBindMethod(this, "RunSelectedPlugin", list, items))
         this.Button(window, "x+10 w150", "Custom shortcuts…", ObjBindMethod(this, "ShowIni", "custom"))
@@ -403,15 +407,15 @@ class CJUI {
             this.App.Plugins.Run(plugin.Id)
     }
 
-    ShowFormats(id := 0, visible := true, selected := "") {
+    ShowFormats(id := 0, visible := true, selected := "", sourceSnapshot := false) {
         this.LastTarget := this.App.ExternalTarget()
-        snapshot := id ? this.App.Store.Snapshot(id) : this.App.LastSnapshot
+        snapshot := IsObject(sourceSnapshot) ? sourceSnapshot : id ? this.App.Store.Snapshot(id) : this.App.LastSnapshot
         if !IsObject(snapshot)
             snapshot := CJSnapshot.FromText("")
         window := this.New("formats", "Clipjump Modern — Common Formats", "+Resize")
         formats := this.App.Plugins.Formats(), names := [], chosen := 1
         for index, format in formats {
-            names.Push(format.Name)
+            names.Push(this.App.Config.L(format.Name))
             if format.Id = selected
                 chosen := index
         }
@@ -435,7 +439,7 @@ class CJUI {
     FormatPreview(state) {
         try state.Result.Value := this.App.Plugins.Transform(state.Formats[state.Chooser.Value].Id, state.Source.Value, state.Parameter.Value)
         catch as err
-            state.Result.Value := "Format error: " err.Message
+            state.Result.Value := this.App.Config.L("Format error:") " " err.Message
     }
     UseFormat(state, paste) {
         format := state.Formats[state.Chooser.Value].Id
@@ -520,7 +524,7 @@ class CJUI {
             keys[key] := true
         }
         window := this.New("translations", "Clipjump Modern — Translation File Cleaner", "+Resize")
-        window.AddEdit("w650 h380 ReadOnly Multi", "Duplicate keys:`r`n" (duplicates != "" ? duplicates : "None") "`r`n`r`nUnique keys: " keys.Count "`r`nThe source file was not changed.")
+        window.AddEdit("w650 h380 ReadOnly Multi", this.App.Config.L("Duplicate keys:") "`r`n" (duplicates != "" ? duplicates : this.App.Config.L("None")) "`r`n`r`n" this.App.Config.L("Unique keys:") " " keys.Count "`r`n" this.App.Config.L("The source file was not changed."))
         if visible
             window.Show()
         return window

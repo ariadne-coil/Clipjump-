@@ -149,7 +149,7 @@ try {
     A_Clipboard := "external newer copy"
     sentBefore := Sent.Length, app.FinishPaste()
     Check(Sent.Length = sentBefore && A_Clipboard = "external newer copy", "External clipboard changes cancel stale paste")
-    app.Config.Set("Incognito", 1), Check(!app.QueueCapture(), "Private mode refuses capture worker")
+    app.Config.Set("IncognitoStopsCapture", 1), app.Config.Set("Incognito", 1), Check(!app.QueueCapture(), "Strict private mode refuses capture worker")
     app.Config.Set("Incognito", 0), app.Config.Set("IgnoredProcesses", "test.exe")
     Check(app.Config.Ignored("TEST.EXE", "") && !app.Config.Ignored("other.exe", ""), "Ignored source matching")
     app.Config.Set("CopyMessage", 0)

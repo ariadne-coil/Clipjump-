@@ -11,7 +11,17 @@ class CJConfig {
         this.Values := Map("Monitoring", 1, "Incognito", 0, "HistoryDays", 30, "MaximumChannelClips", 100,
             "Deduplicate", 0, "CopyMessage", 1, "PreservePosition", 0, "Channel", 0, "DefaultFormat", "none",
             "PasteHotkey", "^v", "HistoryHotkey", "^+h", "ActionHotkey", "^+a", "ChannelsHotkey", "^+o",
-            "PlainHotkey", "^!v", "IgnoredProcesses", "", "IgnoredClasses", "", "Language", "english")
+            "PlainHotkey", "^!v", "IgnoredProcesses", "", "IgnoredClasses", "", "Language", "english",
+            "KeepSession", 1, "StoreImages", 1, "ClipThreshold", 1, "LimitAllChannels", 0, "ThumbnailQuality", 90,
+            "RememberFormat", 1, "LastFormat", "", "StartSearch", 0, "PartialSearch", 0, "HistoryCloseOnPaste", 1,
+            "IncognitoStopsCapture", 0, "ManualCaptureOnly", 0, "WinCopyCut", 0, "CopyBeep", 0, "BeepFrequency", 1500,
+            "ShowPasteTip", 1, "ShowPastingTip", 0, "PasteX", "", "PasteY", "", "TextEditor", "notepad.exe",
+            "ImageEditor", "mspaint.exe", "ProcessPriority", "Normal", "RAMFlush", 0, "StartWithWindows", 0,
+            "PitSwapHotkey", "", "OneTimeHotkey", "", "SystemCopyHotkey", "", "SystemCutHotkey", "",
+            "HoldHotkey", "", "CopyFilesHotkey", "", "CopyFolderHotkey", "", "CopyDataHotkey", "", "PluginHotkey", "",
+            "NextKey", "v", "PreviousKey", "c", "ModeKey", "x", "FormatKey", "z", "PlainKey", "p",
+            "SearchKey", "f", "ClipboardKey", "s", "FirstKey", "a", "FrontKey", "q", "PinKey", "Space",
+            "TagKey", "t", "EditKey", "h", "ExportKey", "e", "HelpKey", "F1", "FeatureSchema", 2)
         for name, fallback in this.Values {
             value := IniRead(this.File, "General", name, fallback)
             if Type(fallback) = "Integer"
@@ -19,7 +29,15 @@ class CJConfig {
             this.Values[name] := value
         }
         this.Values["HistoryDays"] := Max(0, Min(36500, this.Values["HistoryDays"]))
-        this.Values["MaximumChannelClips"] := Max(1, Min(100000, this.Values["MaximumChannelClips"]))
+        this.Values["MaximumChannelClips"] := Max(0, Min(100000, this.Values["MaximumChannelClips"]))
+        for name, range in Map("ClipThreshold", [1, 100000], "ThumbnailQuality", [1, 100], "BeepFrequency", [37, 32767])
+            this.Values[name] := Max(range[1], Min(range[2], this.Values[name]))
+        if !InStr("|Low|BelowNormal|Normal|AboveNormal|High|Realtime|", "|" this.Values["ProcessPriority"] "|")
+            this.Values["ProcessPriority"] := "Normal"
+        ; Preserve the stronger private mode selected in beta.1 during upgrade.
+        if FileExist(this.File) && IniRead(this.File, "General", "FeatureSchema", 0) < 2 && this.Get("Incognito")
+            this.Values["IncognitoStopsCapture"] := 1
+        this.Values["FeatureSchema"] := 2
         this.Translations := Map()
         this.LoadLanguage()
     }
@@ -45,9 +63,10 @@ class CJConfig {
     LoadLanguage() {
         this.Translations := Map()
         language := this.Get("Language")
-        if !RegExMatch(language, "^[\w-]+$")
+        if !RegExMatch(language, "^[\p{L}\p{N}_-]+$")
             language := "english"
-        path := this.Root "\languages\" language ".txt"
+        base := this.HasOwnProp("LanguageRoot") ? this.LanguageRoot : this.Root
+        path := base "\languages\" language ".txt"
         if !FileExist(path)
             return
         for line in StrSplit(FileRead(path, "UTF-8"), "`n", "`r") {
@@ -57,9 +76,11 @@ class CJConfig {
             key := Trim(SubStr(line, 1, InStr(line, "=") - 1))
             this.Translations[key] := Trim(SubStr(line, InStr(line, "=") + 1))
         }
+        this.Labels := CJLabels.Load(base, language, this.Translations)
     }
 
     T(key, fallback) => this.Translations.Has(key) ? this.Translations[key] : fallback
+    L(text) => this.HasOwnProp("Labels") ? CJLabels.Translate(this.Labels, text) : text
 
     Ignored(process, className := "") {
         for name in StrSplit(StrReplace(this.Get("IgnoredProcesses"), "`n", "|"), "|", " `t`r")

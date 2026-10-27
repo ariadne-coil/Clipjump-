@@ -1,32 +1,38 @@
 #Requires AutoHotkey v2.0.31+
 ;@Ahk2Exe-SetName Clipjump Modern
 ;@Ahk2Exe-SetDescription Clipjump Modern - native AutoHotkey v2 clipboard manager
-;@Ahk2Exe-SetVersion 13.0.0.1
+;@Ahk2Exe-SetVersion 13.0.0.2
 #SingleInstance Force
 #ClipboardTimeout 250
 #Include v2\SQLite.ahk
 #Include v2\Clipboard.ahk
 #Include v2\Config.ahk
+#Include v2\Localization.ahk
 #Include v2\Image.ahk
 #Include v2\Store.ahk
 #Include v2\Import.ahk
 #Include v2\Plugins.ahk
 #Include v2\UI.ahk
+#Include v2\UIFeatures.ahk
+#Include v2\Platform.ahk
 #Include v2\API.ahk
 #Include v2\App.ahk
+#Include v2\Features.ahk
 
 global CJ_UserPluginLoader := 0
 #Include *i plugins-v2\User.ahk
 SetWorkingDir(A_ScriptDir)
-smoke := false, dataDirectory := ""
+smoke := false, dataDirectory := "", configDirectory := A_ScriptDir
 for index, argument in A_Args {
     if argument = "--smoke-test"
         smoke := true
     if argument = "--data-dir" && index < A_Args.Length
         dataDirectory := A_Args[index + 1]
+    if argument = "--config-dir" && index < A_Args.Length
+        configDirectory := A_Args[index + 1]
 }
 try {
-    global ClipjumpApp := CJApp(A_ScriptDir, dataDirectory)
+    global ClipjumpApp := CJApp(A_ScriptDir, dataDirectory, {ConfigRoot: configDirectory})
     OnExit(ObjBindMethod(ClipjumpApp, "Shutdown"))
     if smoke {
         unchanged := ClipjumpApp.Smoke()

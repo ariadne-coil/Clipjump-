@@ -24,12 +24,17 @@ class CJImage {
             this.Module := 0
         }
     }
-    static Save(bitmap, path, png := false) {
+    static Save(bitmap, path, png := false, quality := 90) {
         clsid := Buffer(16)
         DllCall("ole32\CLSIDFromString", "Str", png ? "{557cf406-1a04-11d3-9a73-0000f81ef32e}" : "{557cf401-1a04-11d3-9a73-0000f81ef32e}", "Ptr", clsid)
-        return DllCall("gdiplus\GdipSaveImageToFile", "Ptr", bitmap, "Str", path, "Ptr", clsid, "Ptr", 0) = 0
+        parameters := Buffer(A_PtrSize = 8 ? 40 : 32, 0), value := Buffer(4, 0)
+        offset := A_PtrSize = 8 ? 8 : 4
+        NumPut("UInt", 1, parameters), NumPut("UInt", Max(1, Min(100, quality)), value)
+        DllCall("ole32\CLSIDFromString", "Str", "{1D5BE4B5-FA4A-452D-9CDD-5DB35105E7EB}", "Ptr", parameters.Ptr + offset)
+        NumPut("UInt", 1, parameters, offset + 16), NumPut("UInt", 4, parameters, offset + 20), NumPut("Ptr", value.Ptr, parameters, offset + 24)
+        return DllCall("gdiplus\GdipSaveImageToFile", "Ptr", bitmap, "Str", path, "Ptr", clsid, "Ptr", png ? 0 : parameters.Ptr) = 0
     }
-    static Thumbnail(snapshot, path, png := false) {
+    static Thumbnail(snapshot, path, png := false, quality := 90) {
         this.Start()
         bitmap := 0, stream := 0
         try {
@@ -74,7 +79,7 @@ class CJImage {
                 }
                 DllCall("gdiplus\GdipCreateBitmapFromStream", "Ptr", stream, "Ptr*", &bitmap)
             }
-            return bitmap ? this.Save(bitmap, path, png) : false
+            return bitmap ? this.Save(bitmap, path, png, quality) : false
         } finally {
             if bitmap
                 DllCall("gdiplus\GdipDisposeImage", "Ptr", bitmap)
@@ -116,6 +121,16 @@ class CJImage {
             DllCall("RtlMoveMemory", "Ptr", fallback.Ptr + 40, "Ptr", data.Ptr + 124, "UPtr", bytes)
             snapshot.Entries.Push({Id: 8, Name: "", Data: fallback})
             return snapshot
+        } finally DllCall("gdiplus\GdipDisposeImage", "Ptr", bitmap)
+    }
+    static Dimensions(path) {
+        this.Start(), bitmap := 0, width := 0, height := 0
+        if DllCall("gdiplus\GdipCreateBitmapFromFile", "Str", path, "Ptr*", &bitmap)
+            return false
+        try {
+            DllCall("gdiplus\GdipGetImageWidth", "Ptr", bitmap, "UInt*", &width)
+            DllCall("gdiplus\GdipGetImageHeight", "Ptr", bitmap, "UInt*", &height)
+            return {Width: width, Height: height}
         } finally DllCall("gdiplus\GdipDisposeImage", "Ptr", bitmap)
     }
 }

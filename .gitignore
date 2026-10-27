@@ -12,6 +12,7 @@ ClipjumpCustom.ini
 runtime/
 dist/
 test-results/
+output/
 runtime-v2/
 cache-v2/
 settings-v2.ini

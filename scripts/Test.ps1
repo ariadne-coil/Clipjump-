@@ -32,7 +32,7 @@ function Invoke-AhkCheck([string]$Name, [string]$Script, [string[]]$ExtraArgumen
     return $output
 }
 
-foreach ($suite in @('regression')) {
+foreach ($suite in @('regression', 'features-regression')) {
     $output = Invoke-AhkCheck $suite (Join-Path $projectRoot "tests\v2\$suite.ahk")
     if ($output -notmatch 'RESULT \d+ checks; 0 failures;') { throw "$suite did not report completion." }
 }

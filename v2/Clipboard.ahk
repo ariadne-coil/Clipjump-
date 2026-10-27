@@ -182,7 +182,7 @@ class CJSnapshot {
         }
     }
 
-    Kind => this.Find(15) ? "files" : this.Find(8) || this.Find(17) || this.Find("PNG") || this.Find("image/png") ? "image" : this.Text != "" ? "text" : "binary"
+    Kind => this.Find(15) ? "files" : this.Text != "" ? "text" : this.Find(8) || this.Find(17) || this.Find("PNG") || this.Find("image/png") ? "image" : "binary"
     Size {
         get {
             bytes := 0
