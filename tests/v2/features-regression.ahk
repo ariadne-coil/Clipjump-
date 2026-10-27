@@ -9,6 +9,21 @@ DirCreate(temporary)
 original := ClipboardAll(), app := false, store := false
 try {
     app := MakeApp("main"), store := app.Store
+    Check(!app.Config.Get("CopyMessage") && !app.Config.Get("CopyBeep"), "Copy capture is silent by default")
+    preview := {text: "First line`r`n  indented Ω", kind: "text"}
+    Check(app.UI.OverlayText(preview, 1, 3, "none") = "Clip 1 / 3`n`n" preview.text, "Default paste preview contains only the clip number and unchanged text")
+    active := WinExist("A"), sequence := CJClipboard.Sequence()
+    app.UI.ShowOverlay(preview, 1, 3, "none"), previewHwnd := app.UI.Overlay
+    Check(WinGetClass("ahk_id " previewHwnd) = "tooltips_class32", "Paste preview uses the original native tooltip")
+    WinGetPos(, , &shortWidth, &shortHeight, "ahk_id " previewHwnd)
+    Check(shortWidth < 460 * A_ScreenDPI / 96 && shortHeight < 180 * A_ScreenDPI / 96, "Short paste preview sizes to its contents")
+    Check(WinExist("A") = active && CJClipboard.Sequence() = sequence, "Showing a paste preview leaves focus and the clipboard intact")
+    Check(InStr(app.UI.OverlayText(preview, 1, 3, "plain"), "[Plain text]"), "Explicit paste formatting stays visible in the compact caption")
+    app.Mode := {Action: "delete"}
+    Check(InStr(app.UI.OverlayText(preview, 1, 3, "none"), "[Delete]"), "Destructive paste action stays visible in the compact caption")
+    app.Config.Set("ShowPasteTip", 0), app.ShowPasteTip()
+    Check(!app.UI.Overlay && !DllCall("IsWindowVisible", "Ptr", previewHwnd), "Disabling paste previews removes the tooltip")
+    app.Mode := false, app.Config.Set("ShowPasteTip", 1)
     Check(app.Config.Get("RememberFormat") && app.Config.Get("KeepSession"), "Retention and remembered-format controls exist")
     Check(app.Config.Get("StoreImages") && !app.Config.Get("LimitAllChannels"), "Image history and default-channel-only limits")
     values := app.Config.Values.Clone(), values["MaximumChannelClips"] := 0
@@ -294,6 +309,15 @@ try {
     IniWrite(1, migratedRoot "\settings-v2.ini", "General", "Incognito")
     migrated := CJConfig(migratedRoot)
     Check(migrated.Get("IncognitoStopsCapture") = 1, "Upgrade preserves existing strict private mode")
+    silentRoot := temporary "\silent-upgrade", DirCreate(silentRoot)
+    IniWrite(2, silentRoot "\settings-v2.ini", "General", "FeatureSchema")
+    IniWrite(1, silentRoot "\settings-v2.ini", "General", "CopyMessage")
+    silent := CJConfig(silentRoot)
+    Check(!silent.Get("CopyMessage"), "Existing v2 settings upgrade to silent copy capture")
+    silent.Save(), silent := CJConfig(silentRoot)
+    Check(!silent.Get("CopyMessage"), "Silent copying persists after restarting")
+    silent.Set("CopyMessage", 1), silent := CJConfig(silentRoot)
+    Check(silent.Get("CopyMessage"), "Capture confirmation remains an explicit opt-in after upgrade")
     migrationPath := temporary "\database-migration", library := root "\runtime-v2\" (A_PtrSize = 8 ? "x64" : "x86") "\sqlite3.dll"
     migration := CJStore(migrationPath, library)
     fixedId := migration.Add(CJSnapshot.FromText("migrated fixed")), laterId := migration.Add(CJSnapshot.FromText("migrated later"))

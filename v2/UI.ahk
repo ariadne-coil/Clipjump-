@@ -531,20 +531,24 @@ class CJUIBase {
     }
 
     ShowOverlay(record, index, total, format) {
-        if !this.Overlay {
-            window := Gui("-Caption +ToolWindow +AlwaysOnTop +E0x20", "Clipjump Paste Mode")
-            window.SetFont("s10", "Segoe UI")
-            window.BackColor := "F5F6FA"
-            label := window.AddText("w460 h120", "")
-            this.Overlay := {Gui: window, Label: label}
+        text := this.OverlayText(record, index, total, format)
+        previous := CoordMode("ToolTip", "Screen")
+        try {
+            x := this.App.Config.Get("PasteX"), y := this.App.Config.Get("PasteY")
+            this.Overlay := ToolTip(text, x != "" ? Integer(x) : unset, y != "" ? Integer(y) : unset)
+        } finally {
+            CoordMode("ToolTip", previous)
         }
-        this.Overlay.Label.Value := "{" this.App.Store.Channel(this.App.Channel).name "}  Clip " index " of " total "  [" format "]`n`n" SubStr(record.text != "" ? record.text : "[" record.kind "]", 1, 240) "`n`nV/C browse   Z format   X cancel   F search"
-        MouseGetPos(&x, &y)
-        this.Overlay.Gui.Show("NoActivate AutoSize x" Max(0, Min(A_ScreenWidth - 500, x + 18)) " y" Max(0, Min(A_ScreenHeight - 200, y + 18)))
     }
+    OverlayText(record, index, total, format) {
+        preview := record.text != "" ? SubStr(record.text, 1, 240) : "[" this.App.Config.L(record.kind) "]"
+        return this.OverlayCaption(record, index, total, format) "`n`n" preview
+    }
+    OverlayCaption(record, index, total, format) => this.App.Config.L("Clip") " " index " / " total
     HideOverlay() {
         if this.Overlay
-            this.Overlay.Gui.Hide()
+            ToolTip()
+        this.Overlay := false
     }
     Destroy() {
         if this.History {
@@ -556,8 +560,6 @@ class CJUIBase {
         for name, window in this.Windows
             try window.Destroy()
         this.Windows.Clear(), this.History := false
-        if this.Overlay
-            this.Overlay.Gui.Destroy()
-        this.Overlay := false
+        this.HideOverlay()
     }
 }

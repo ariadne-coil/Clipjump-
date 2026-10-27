@@ -9,7 +9,7 @@ class CJConfig {
         this.Data := CJConfig.FullPath(dataDirectory != "" ? dataDirectory : root "\cache-v2")
         DirCreate(this.Data)
         this.Values := Map("Monitoring", 1, "Incognito", 0, "HistoryDays", 30, "MaximumChannelClips", 100,
-            "Deduplicate", 0, "CopyMessage", 1, "PreservePosition", 0, "Channel", 0, "DefaultFormat", "none",
+            "Deduplicate", 0, "CopyMessage", 0, "PreservePosition", 0, "Channel", 0, "DefaultFormat", "none",
             "PasteHotkey", "^v", "HistoryHotkey", "^+h", "ActionHotkey", "^+a", "ChannelsHotkey", "^+o",
             "PlainHotkey", "^!v", "IgnoredProcesses", "", "IgnoredClasses", "", "Language", "english",
             "KeepSession", 1, "StoreImages", 1, "ClipThreshold", 1, "LimitAllChannels", 0, "ThumbnailQuality", 90,
@@ -21,7 +21,7 @@ class CJConfig {
             "HoldHotkey", "", "CopyFilesHotkey", "", "CopyFolderHotkey", "", "CopyDataHotkey", "", "PluginHotkey", "",
             "NextKey", "v", "PreviousKey", "c", "ModeKey", "x", "FormatKey", "z", "PlainKey", "p",
             "SearchKey", "f", "ClipboardKey", "s", "FirstKey", "a", "FrontKey", "q", "PinKey", "Space",
-            "TagKey", "t", "EditKey", "h", "ExportKey", "e", "HelpKey", "F1", "FeatureSchema", 2)
+            "TagKey", "t", "EditKey", "h", "ExportKey", "e", "HelpKey", "F1", "FeatureSchema", 3)
         for name, fallback in this.Values {
             value := IniRead(this.File, "General", name, fallback)
             if Type(fallback) = "Integer"
@@ -37,7 +37,11 @@ class CJConfig {
         ; Preserve the stronger private mode selected in beta.1 during upgrade.
         if FileExist(this.File) && IniRead(this.File, "General", "FeatureSchema", 0) < 2 && this.Get("Incognito")
             this.Values["IncognitoStopsCapture"] := 1
-        this.Values["FeatureSchema"] := 2
+        ; Earlier v2 betas enabled capture popups by default. Upgrade to silent
+        ; copying once; a later explicit opt-in remains available in Settings.
+        if FileExist(this.File) && IniRead(this.File, "General", "FeatureSchema", 0) < 3
+            this.Values["CopyMessage"] := 0
+        this.Values["FeatureSchema"] := 3
         this.Translations := Map()
         this.LoadLanguage()
     }

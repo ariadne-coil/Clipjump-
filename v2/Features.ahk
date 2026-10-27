@@ -128,7 +128,7 @@ class CJApp extends CJAppBase {
             return false
         this.ForcedCapture := forced
         this.Job.Queue(this.Channel)
-        SetTimer(this.CaptureTimer, 40)
+        SetTimer(this.CaptureTimer, 15)
         return true
     }
     CapturePoll() {
@@ -187,7 +187,7 @@ class CJApp extends CJAppBase {
         finally {
             this.CaptureBusy := false
             if this.Job.Pending
-                SetTimer(this.CaptureTimer, 40)
+                SetTimer(this.CaptureTimer, 15)
         }
     }
     AddSnapshot(snapshot, channel := -1) {
@@ -318,6 +318,8 @@ class CJApp extends CJAppBase {
     ShowPasteTip() {
         if this.Mode && this.Config.Get("ShowPasteTip")
             this.UI.ShowOverlay(this.Mode.Items[this.Mode.Index], this.Mode.Index, this.Mode.Items.Length, this.Mode.Format)
+        else
+            this.UI.HideOverlay()
     }
     ApplyModeFormat() {
         if !this.Mode
@@ -386,7 +388,7 @@ class CJApp extends CJAppBase {
             if this.Config.Get("ShowPastingTip")
                 this.Tip(this.Config.L("Pasting..."), 500)
             this.Sender.Call("^v")
-            if GetKeyState("Shift")
+            if this.HooksEnabled && GetKeyState("Shift")
                 this.Store.Remove(this.LastSelectedId, this.Channel)
         }
     }

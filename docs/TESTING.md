@@ -4,7 +4,7 @@ Run `scripts/Build.ps1` and `scripts/Test.ps1` with the same architecture. Run s
 
 ## Automated checks
 
-The native v2 suites make **86 engine assertions, 132 feature assertions and 9 compiled-application assertions on each of x64 and x86**, plus separate script and executable startup smoke tests for each assembled portable package. That is 454 assertions and four package startup checks across both architectures.
+The native v2 suites make **87 engine assertions, 143 feature assertions and 10 compiled-application assertions on each of x64 and x86**, plus separate script and executable startup smoke tests for each assembled portable package. That is 480 assertions and four package startup checks across both architectures.
 
 - Unicode/emoji, quoted text, HTML, RTF, SVG, PDF and Adobe AICB-style binary format capture and replay.
 - Name-based registered format restoration independent of old numeric IDs; archive bounds and terminator validation.
@@ -25,6 +25,8 @@ The native v2 suites make **86 engine assertions, 132 feature assertions and 9 c
 - Native search mode, preview Find, full image sizing, New Clip, isolated Hold buffers, external text/image save/reload, Explorer provider integration and multiple file paths.
 - Startup shortcut creation/removal in a temporary directory, JPEG quality encoders, complete label catalogs for seven languages and strict-incognito settings migration.
 - Deterministic update-worker success/timeout fixtures verify immediate return, callback reporting, process-handle cleanup and temporary-file removal. CI does not depend on a live update service.
+- Copy capture launches its worker immediately and shows no default confirmation in the compiled app. Earlier v2 settings migrate to silent capture, retain that choice across restarts and still allow an explicit later opt-in.
+- Paste preview uses the native tooltip, sizes to short contents, preserves multiline text and leaves clipboard contents and window focus unchanged. Selected formats and destructive actions remain visible in the caption; disabling previews removes the tooltip. Hook-free engine runs ignore the desktop's Shift key for delete-after-paste.
 
 The local platform is Windows 11 Home x64 build 26200. Both architectures pass locally. CI runs the same builds and suites on Windows runners. These checks are not application certification.
 

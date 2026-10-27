@@ -155,6 +155,7 @@ try {
     app.Config.Set("CopyMessage", 0)
     A_Clipboard := "queued application clip"
     app.QueueCapture()
+    Check(app.Job.ProcessHandle && app.Job.Pending, "Copy starts the isolated capture worker immediately")
     deadline := A_TickCount + 4500
     while app.Job.Pending && A_TickCount < deadline
         Sleep(25)

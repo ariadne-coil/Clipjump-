@@ -481,19 +481,16 @@ class CJUI extends CJUIBase {
             window.Show("NoActivate")
         return window
     }
-    ShowOverlay(record, index, total, format) {
-        super.ShowOverlay(record, index, total, this.App.Config.L(this.App.Plugins.Items[format].Name))
+    OverlayCaption(record, index, total, format) {
+        caption := super.OverlayCaption(record, index, total, format)
+        if this.App.Channel != 0
+            caption := "{" this.App.Store.Channel(this.App.Channel).name "} " caption
+        if format != "none"
+            caption .= " [" this.App.Config.L(this.App.Plugins.Items[format].Name) "]"
         mode := this.App.Mode, action := IsObject(mode) ? mode.Action : "paste"
-        caption := Map("paste", "Paste", "cancel", "Cancel", "delete", "Delete", "move", "Move to…", "copy", "Copy", "delete-all", "Clear…")[action]
-        preview := record.text != "" ? SubStr(RegExReplace(record.text, "\s+", " "), 1, 200) : "[" this.App.Config.L(record.kind) "]"
-        this.Overlay.Label.Move(, , 460, 180)
-        this.Overlay.Label.Value := "{" this.App.Store.Channel(this.App.Channel).name "}  " this.App.Config.L("Clip") " " index " / " total "  [" this.App.Config.L(caption) "]`n" this.App.Config.L(this.App.Plugins.Items[format].Name) "`n`n" preview "`n`n" this.App.Config.L("Release the modifier to confirm.") " " this.App.Config.Get("ModeKey") ": " this.App.Config.L("Switch mode")
-        this.Overlay.Gui.Show("NoActivate AutoSize")
-        xValue := this.App.Config.Get("PasteX"), yValue := this.App.Config.Get("PasteY")
-        if xValue != "" || yValue != "" {
-            this.Overlay.Gui.GetPos(&x, &y)
-            this.Overlay.Gui.Show("NoActivate x" (xValue != "" ? Integer(xValue) : x) " y" (yValue != "" ? Integer(yValue) : y))
-        }
+        if action != "paste"
+            caption .= " [" this.App.Config.L(Map("cancel", "Cancel", "delete", "Delete", "move", "Move to…", "copy", "Copy", "delete-all", "Clear…")[action]) "]"
+        return caption
     }
     Destroy() {
         for item in this.ExtraKeys {

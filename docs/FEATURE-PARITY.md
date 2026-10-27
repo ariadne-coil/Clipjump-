@@ -8,11 +8,11 @@ This comparison covers the non-legacy gaps identified between original Clipjump 
 | Session storage | Retain or clear the default channel across restarts. History and other channels persist independently. |
 | Channel capacity | Default-channel limit, cleanup threshold, zero for unlimited, optional limit on every channel. Other channels are unlimited by default. |
 | Image history | Exclude images from History while retaining their channel clips; configurable JPEG thumbnail quality. |
-| Copy feedback | Capture tooltip, optional beep and configurable frequency. |
+| Copy feedback | Silent by default, including upgrades from earlier v2 settings; capture confirmation and a beep are explicit options. The isolated reader starts immediately without a settle delay. |
 | Capture control | Pause monitoring, capture only explicit copy/cut, One Time Stop, system-only copy/cut shortcuts, optional Win+C/X/V split. |
 | Incognito | Exclude new copies from History while keeping channel capture; optional strict mode stops channel capture too. Beta.1's strict incognito preference survives upgrade. |
 | PitSwap | Switch to the Pit channel and back to the previous channel. |
-| Paste controls | Configurable keys, relative number jumps, first-position jump, move-to-front, exact fixed positions, action modes, channel arrows, copy without pasting, help and multipaste. |
+| Paste controls | Compact native tooltip showing the clip number and contents; extra caption details only for a chosen format, alternate action or non-default channel. Configurable keys, relative number jumps, first-position jump, move-to-front, exact fixed positions, action modes, channel arrows, copy without pasting, F1 help and multipaste. |
 | Search-paste mode | Search and paste without holding Ctrl; Enter/middle-click pastes, Ctrl+Enter keeps the window open, Ctrl+F returns a selection to normal paste mode. Optional start-in-search setting. |
 | History and channels | Combined channel view, literal/partial search, new clips/channels, clip/channel swaps and a configurable close-after-paste policy. |
 | Preview | Full saved image with aspect-preserving resize; text Find with Ctrl+F, F3 and Enter. Clipboard HTML is never executed. |

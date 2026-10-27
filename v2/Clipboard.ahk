@@ -285,7 +285,7 @@ class CJSnapshot {
 }
 
 class CJCaptureJob {
-    __New(directory, runtime, worker, settle := 150, deadline := 3000) {
+    __New(directory, runtime, worker, settle := 0, deadline := 3000) {
         this.Directory := directory, this.Runtime := runtime, this.Worker := worker
         this.Settle := settle, this.Deadline := deadline, this.Pending := false
         this.ProcessHandle := 0, this.Prefix := "", this.Counter := 0
@@ -296,6 +296,9 @@ class CJCaptureJob {
         this.Cancel()
         this.Channel := channel, this.Kind := kind, this.Sequence := CJClipboard.Sequence()
         this.QueuedAt := A_TickCount, this.Pending := true
+        ; Launch the isolated reader immediately. Clipboard contention and
+        ; delayed rendering are still retried and bounded inside the worker.
+        this.Poll()
     }
 
     Poll() {

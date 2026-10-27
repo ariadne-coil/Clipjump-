@@ -224,7 +224,7 @@ class CJAppBase {
             return false
         this.ForcedCapture := forced
         this.Job.Queue(this.Channel)
-        SetTimer(this.CaptureTimer, 40)
+        SetTimer(this.CaptureTimer, 15)
         return true
     }
     CapturePoll() {
@@ -277,7 +277,7 @@ class CJAppBase {
         } finally {
             this.CaptureBusy := false
             if this.Job.Pending
-                SetTimer(this.CaptureTimer, 40)
+                SetTimer(this.CaptureTimer, 15)
         }
     }
     Raise(err) {
@@ -489,7 +489,7 @@ class CJAppBase {
         this.LastSnapshot := mode.SelectedSnapshot, this.LastSequence := mode.CurrentSequence, this.LastId := this.LastSelectedId
         if !mode.MultiPaste {
             this.Sender.Call("^v")
-            if GetKeyState("Shift")
+            if this.HooksEnabled && GetKeyState("Shift")
                 this.Store.Remove(this.LastSelectedId, this.Channel)
         }
     }

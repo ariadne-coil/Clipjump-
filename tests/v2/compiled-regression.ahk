@@ -36,6 +36,7 @@ try {
     stored := CJSnapshot.Load(client.getClipLoc(0, 1)), restored := stored.Find("Adobe Illustrator AICB")
     Check(IsObject(restored) && restored.Size = payload.Size && !DllCall("msvcrt\memcmp", "Ptr", restored, "Ptr", payload, "UPtr", payload.Size, "Cdecl Int"), "Compiled capture preserves opaque binary formats")
     Check(CJClipboard.Sequence() = sequence, "Compiled capture leaves live clipboard unchanged")
+    Check(!WinExist("ahk_class tooltips_class32 ahk_pid " hostPid), "Compiled copy capture displays no confirmation popup")
     job := CJCaptureJob(temporary "\direct-worker", "unused-interpreter.exe", hostRoot "\ClipjumpCapture.exe", 0, 3000)
     job.Queue(0), status := Poll(job)
     Check(status = "ready", "Compiled worker runs with no interpreter dependency")
